@@ -1,0 +1,274 @@
+---
+title: "ESPM 137, Lab 8: Landscape Change Dynamics"
+output: html_document
+---
+
+#! This lab is worth 11 pts and is due at 5pm on Friday, 10/23. !#
+
+## Overview and Goals
+
+In this lab, we will investigate landscape change dynamics, focusing on wildlife activity across California and landcover change in Yosemite.  
+Goals--
+1: To learn how to construct time-series objects and test for stationarity.
+2: To examine changes in landcover (vegetation) and construct a transition probability matrix.
+3: To use R to calculate total carbon sequestered by the natural vegetation in Yosemite and predict how it will change.
+
+
+### Set up the R session ###
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Start with a clean slate...
+rm(list = ls()) 
+
+# Set working directory...
+wd_path <- "~/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab8"
+setwd(wd_path)
+knitr::opts_knit$set(root.dir = wd_path) # Make sure knitr knows your wd
+```
+
+Load required packages...
+```{r packages, include=FALSE}
+
+# Make a list of the packages we need, check whether they're installed, and install the ones we're missing...
+required.pkg <- c("raster", "RColorBrewer", "tseries", "rgdal", "plotrix", "knitr")
+pkgs.not.installed <- required.pkg[!sapply(required.pkg, function(p) require(p, character.only=T))]
+if(length(pkgs.not.installed) > 0) install.packages(pkgs.not.installed, dependencies=TRUE)
+
+# Load the required libraries...
+lapply(required.pkg, library, character.only = TRUE) 
+```
+
+---------------------------------------------------
+
+## Part 1: Tracking California Wildfire Activity ##
+
+In Part 1 of this lab, we'll examine whether the area burned by wildfires in California has been stationary over the last 65 years and whether it will continue to be under projected climate change in the future (up to 2100).  
+
+Let's start by loading rasters of wildfire activity from the Cal-Adapt Project.  The values on these rasters correspond to the number of hectares burned in each cell, and there's one raster for each year from 1954-2100.
+```{r, include=FALSE}
+setwd("./FireData")
+fireRasters <- stack(list.files())
+fireRasters # Show us what we've got
+```
+
+Let's also read in a shapefile for the county borders in California...
+```{r, include=FALSE}
+counties <- readOGR(dsn="County", layer="CaliforniaCounty")
+```
+
+And now let's plot the wildfire activity for last year (2017)...
+```{r}
+fireCols <- colorRampPalette(c("springgreen3", "yellow", "orange", "darkred"))
+plot(fireRasters[[64]], col=fireCols(100))
+plot(counties, border="gray50", add=TRUE)
+```
+
+We can calculate the total burned area across the state using the cellStats() function.  Here we'll calculate the sum of all the cells to get the total burned hectares for each raster (i.e. for each year).
+```{r, include=FALSE}
+burnedArea <- cellStats(fireRasters, stat="sum")
+burnedArea[1:8]
+```
+
+Now, because we're interested in how the burned area changes through time, we'll make our burned area calculations into a time-series object using the ts() function.  A time-series object is basically just a value series in which each value is associated with a time period (in this case a year).  
+```{r}
+burnedArea.series <- ts(burnedArea, start=1954, end=2100) # Make time-series
+plot(burnedArea.series, col="firebrick") # Plot the result
+```
+
+Let's first look at the historical, recorded data from 1954 up until 2017.  We can retrieve a time window from our time-series using the window() function.
+window(x, start, end)
+  x: a tie-series
+  start: the start time of the period of interest
+  end: the end time of the period of interest
+```{r}
+burned.1954_2017 <- window(burnedArea.series, start=1954, end=2017)
+```
+
+For a stationary pattern, we expect the mean and standard deviation (or variance) to remain roughly the same through time.  We can calculate the mean and standard deviation for our time-series just as we would for any other R object, using the mean() and sd() functions.
+```{r}
+avg <- mean(burned.1954_2017)
+stdev <- sd(burned.1954_2017)
+```
+
+And now we can plot the 1954-2017 time-series with the mean (dashed) and standard deviation above and below the mean (dotted lines).
+```{r}
+plot(burned.1954_2017, col="firebrick")
+abline(h=avg, lty=2, col="gray50")
+abline(h=avg+stdev, lty=3, col="gray50")
+abline(h=avg-stdev, lty=3, col="gray50")
+```
+
+The plot above gives us a visual sense for whether our time-series is stationary, but of course we also want to use a statistical test to provide some evidence for this.  We can test for stationarity using the Kwiatkowski-Phillips-Schmidt-Shin (KPSS) test.  In this test, the null hypothesis is that the series is stationary, and the alternative hypothesis is that the series is non-stationary.  The test can be implemented with the kpss.test() function.
+```{r}
+kpss.test(burned.1954_2017)
+```
+
+### Question 1 (1pt) ###
+**Is the time-series of burned area from 1954-2017 stationary or non-stationary?  Explain your answer.**
+> This time-series is stationary (reject the alternative) because the observed value (0.1) does not show statistcal significance of the time-series being influenced by non-random factors. On the time series plot, we can also see that the average and SD stays consistent through time, which reflects stationarity.
+
+
+Next, let's look at the predictions for burned area in California in the future.  
+
+### Question 2 (2.5 pts) ###
+**2a) In the chunk below, assign the time-series for burned area from 2018 to 2100 to an object named burned.2018_2100 and then test whether it is stationary. [1.5 pts]**
+```{r}
+burned.2018_2100 <- window(burnedArea.series, start=2018, end=2100)
+
+avg.future <- mean(burned.2018_2100)
+stdev.future <- sd(burned.2018_2100)
+
+plot(burned.2018_2100, col="firebrick")
+abline(h=avg.future, lty=2, col="gray50")
+abline(h=avg.future+stdev.future, lty=3, col="gray50")
+abline(h=avg.future-stdev.future, lty=3, col="gray50")
+
+kpss.test(burned.2018_2100)
+
+```
+
+**2b) Is the time-series of burned area from 2018-2100 stationary or non-stationary?  Explain your answer. [1 pt]**
+> The time-series from 2018-2100 is non-stationary (reject the null) because the observed value (0.01103) shows statistcal significance of the time-series being influenced by non-random factors.
+
+
+Finally, we might also be interested in whether the rate of change in a time-series is stationary.  This will tell us whether the pattern is changing in a consistent way, or whether the change itself is also non-stationary.  We can calculate the changes between each time point in a time-series by 'differencing' the series - basically, this just gives us a new series in which each value is the difference between one year and the next.  We can calculate this new series using the diff() function.
+
+diff(x)
+  x: a vector or time-series to be differenced
+
+### Question 3 (2.5 pts) ###
+**3a) In the chunk below, calculate the differenced series for the time-series of burned area from 1954-2100.  Then plot the new time-series and test whether it is stationary. [1.5 pts]**
+```{r}
+burnedArea.series <- ts(burnedArea, start=1954, end=2100) # Make time-series
+
+burnedArea.differenced <- diff(burnedArea.series)
+
+avg.differenced <- mean(burnedArea.differenced)
+stdev.differenced <- sd(burnedArea.differenced)
+
+plot(burnedArea.differenced, col="firebrick")
+abline(h=avg.differenced, lty=2, col="gray50")
+abline(h=avg.differenced + stdev.differenced, lty=3, col="gray50")
+abline(h=avg.differenced - stdev.differenced, lty=3, col="gray50")
+
+kpss.test(burnedArea.differenced)
+
+```
+
+**3b) Is the rate of change for burned area from 1954-2100 stationary or non-stationary?  Explain your answer. [1 pt]**
+> The differenced series for the time-series of burned area from 1954-2100 is stationary (reject the alternative) because the observed value (0.1) shows no statistcal significance of the time-series being influenced by non-random factors. Also, on the time series plot, we can also see that the average and SD stays consistent through time, which reflects stationarity.
+
+
+-------------------------------------------
+
+## Part 2: Vegetation Change in Yosemite ##
+
+Next, in Part 2, we'll examine landcover change in Yosemite National Park over a 67 year period from 1930-1997.  Yosemite is often thought of as a protected area that's not subject to much environmental change.  However, it's still affected by all of the broad-scale outside forces, like climate change, that can influence patterns of biodiversity anywhere.
+
+Two detailed surveys of the vegetation (i.e. landcover) in Yosemite have been conducted in the last century.  The first was the Wieslander vegetation mapping project that was completed in 1930, and the second was a vegetation resurvey completed in 1997.  Both provide fine-resolution GIS data layers for vegetation classes for the whole national park.
+
+Let's load those two raster layers now...
+```{r}
+VTM1930 <- raster("VTM1930r.tif")
+VTM1997 <- raster("VTM1997r.tif")
+```
+
+And let's plot them...
+```{r, fig.width=10}
+# Plot the vegetation maps with a new color palette
+vegCols <- colorRampPalette(c("white", "darkorchid4", "white", "darkgreen", "darkolivegreen4", "cyan", "limegreen", "white", "chocolate", "white", "yellow2", "white", "white", "white", "gray", "darkblue", "white", "lightgoldenrod"))
+par(mfrow=c(1, 3))
+plot(VTM1930, breaks=0:18, col=vegCols(18), legend=FALSE, main="1930")
+plot(VTM1997, breaks=0:18, col=vegCols(18), legend=FALSE, main="1997")
+plot(1:10, 1:10, col="white")
+
+# Add a color legend that lists each vegetation type
+vt <- c("Alpine", "Sub-alpine forest", "Montane conifer forest", "Mixed forest", "Hardwood forest", "Conifer woodlands", "Hardwood woodlands", "Sagebrush", "Chapparal", "Grasslands", "Natural barrens", "Water", "Sub-alpine meadow")
+colrt <- c("darkorchid4", "darkgreen", "darkolivegreen4", "cyan", "limegreen", "chocolate", "yellow2", "gray", "darkblue", "lightgoldenrod")
+#color.legend(-119.3,37.5,-119.2,37.9,legend=vt,rect.col=colrt,cex=0.75,align="rb", gradient="y")
+color.legend(1, 4, 4, 8,legend=vt,rect.col=colrt,cex=0.75,align="rb", gradient="y")
+```
+
+Each of the raster cells contains a numeric value that corresponds to one of the vegetation classes.  We can read in the information on which class each of the code numbers corresponds to.
+```{r}
+VegData <- read.csv("VegetationData.csv")
+VegData
+```
+You'll note that not all values (vegetation classes) are represented on the landscape.  For instance, types 3 and 8 are not found in Yosemite.
+
+Now we can use the freq() function to calculate the frequency of each vegetation type on the landscape (the number of cells containing each vegetation class)
+```{r}
+# Calculate frequencies of each vegetation type
+f1 <- freq(VTM1930)
+f2 <- freq(VTM1997)
+
+# Add this information to the VegData data frame
+VegData$Counts_1930 <- f1[1:10, 2]
+VegData$Counts_1997 <- f2[1:10, 2]
+
+# Show us the data frame with the cell counts
+VegData
+```
+
+### Question 4 (1 pt) ###
+**What is the most common vegetation class in 1930 (by name, not number)?  What about in 1997?**
+> Sub-alpine forest in 1930. Montane conifer forest in 1997.
+
+
+We can also calculate how many cells of each vegetation class have changed to every other vegetation class by comparing the 1930 and 1997 rasters.
+```{r}
+# Make a data frame with all values from 1930 and all values from 1997
+VTM.df <- data.frame(v1930=getValues(VTM1930), v1997=getValues(VTM1997))
+
+# Turn this data frame into a table showing changes from one vegetation class to another
+VTM.changes <- table(VTM.df$v1930, VTM.df$v1997)
+kable(VTM.changes, format='pandoc', caption='Counts of change in landcover values from 1930 (rows) to 1997 (columns).')
+```
+
+
+### Question 5 (1 pt) ###
+**How many cells containing conifer woodlands in 1930 changed to chapparal by 1997?**
+> 241 cells changed from confier woodlands in 1930 to chapparal by 1997.
+
+
+We can also calculate the transition probability matrix by calculating each of the changes as the proportion of all cells for that vegetation class.
+```{r}
+# Divide each change count by the total number of cells of its row (vegetation class)
+VTM.P = as.matrix(VTM.changes / rowSums(VTM.changes))
+
+# Make the results into a table for viewing
+kable(round(VTM.P, 4), format='pandoc', caption='Transition probability matrix (_P_) derived from landcover changes from 1930 (rows) to 1997 (columns).')
+```
+
+### Question 6 (1 pt) ###
+**Based on the transition table, what proportion of montane conifer forest changed to mixed forest between 1930 and 1997?  What proportion remained montane conifer forest?**
+> 0.0173 or 1.73% of montane confier forest changed to mixed forest between 1930 and 1997.
+
+
+Finally, if you look at the vegetation maps for 1930 and 1997, you'll see that one of the biggest changes is that sub-alpine forest has receded to the east (toward higher elevation) and been replaced by montane conifer forest.  This is generally consistent with the upslope shift that many ecosystems have experienced under climate change, but others have argued that this change was the result of the suppression of the natural fire regime.  In any case, this landcover change has received much attention.
+
+You may have noticed that the table with the vegetation class information contains a column named Carbon.  This column contains estimates of the amount of carbon sequestered (in megagrams per hectare) by different vegetation types.  Each of the cells on our VTM1930 and VTM1997 rasters is one hectare, and we can use all of this data to calculate changes in carbon sequestration in Yosemite.
+
+### Question 7 (2 pts) ###
+**How much total carbon was sequestered by the vegetation in Yosemite in 1930 and in 1997?  Then use the transition probability matrix to predict how many cells of each vegetation class there will be in 2064 (assuming the transition probabilities stay the same over the next 67 years) and calculate the predicted total carbon sequestered.  Use the code chunk below to show your work.  There are a few steps required, so you might have to think about how to tackle this for a bit - it may help to sketch out your solution first, and then figure out how to code it.  Also, one hint: you can use colSums() to add up all of the entries for a column in a table, similar to how we used rowSums() above.**
+```{r}
+total.carbon.1930 <- sum(VegData$Counts_1930 * VegData$Carbon)
+total.carbon.1997 <- sum(VegData$Counts_1997 * VegData$Carbon)
+
+VTM.changes.2064 <- VegData$Counts_1997 * VTM.P
+Counts_2064 <- colSums(VTM.changes.2064)
+
+total.carbon.2064 <- sum(Counts_2064 * VegData$Carbon)
+
+total.carbon.1930
+total.carbon.1997
+total.carbon.2064
+```
+> The total carbon (in megagrams) sequestered by the vegetation in Yosemite in...
+  1930: 3493710
+  1997: 4890948
+  2064: 5698818 (predicted)
+
+### The End ###
