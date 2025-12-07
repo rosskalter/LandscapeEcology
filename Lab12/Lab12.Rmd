@@ -1,0 +1,441 @@
+---
+title: "ESPM 137, Lab 12: Island Biogeography & Landscape Corridors"
+output: html_document
+---
+
+#! This lab is worth 12 pts and is due at 5pm on Friday, 11/20 !#
+
+## Overview and Goals
+
+In the first part this lab, we will revisit the classic theory of island biogeography to examine the factors that influence colonization and extinction rates on islands.  Then, in the second part, we will conduct a GIS analysis to identify potential dispersal corridors on a landscape and calculate three forms of resistance/cost-based distances.  Landscape resistance/cost-based approaches explicitly recognize that landscapes are heterogeneous, and therefore, they recognize that accounting for heterogeneity is important for understanding how organisms move across landscapes and for efforts to maintain or restore population connectivity.
+
+Goals--
+1: To analyze simulated and empirical datasets to better understand population dynamics under the theory of island biogeography.
+2: Learn how to conduct least cost path analysis (LCPA) and circuit theory distance analysis.
+3: Implement an approach for mapping buffered least cost corridors on real landscapes.
+
+### Set up the R session ###
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Start with a clean slate...
+rm(list = ls()) 
+
+# Set working directory...
+wd_path <- "~/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab12"
+setwd(wd_path)
+knitr::opts_knit$set(root.dir = wd_path) # Make sure knitr knows your wd
+```
+
+Load required packages...
+```{r packages, include=FALSE}
+# Make a list of the packages we need, check whether they're installed, and install the ones we're missing...
+required.pkg <- c("raster", "island", "knitr", "RColorBrewer", "sp", "gdistance", "vegan")
+pkgs.not.installed <- required.pkg[!sapply(required.pkg, function(p) require(p, character.only=T))]
+if (length(pkgs.not.installed) > 0) install.packages(pkgs.not.installed, dependencies=TRUE)
+
+# Load the required libraries...
+lapply(required.pkg, library, character.only = TRUE) 
+```
+
+---------------------------------
+
+## Part 1a: The Classic Model of Island Biogeography ##
+
+First, let's explore the classic model of island biogeography.  In this model, we have an island that is connected to the mainland by periodic migration, and on the island populations have logistic growth.  We can use the ibd_models() function in the island package to simulate population dynamics under this model.
+
+ibd_models(n0, beta, delta, mu, K = NULL, time_v, type)
+  n0: Initial number of individuals in the population.
+  beta: Birth rate, in per time (time ^-1) units.
+  delta: Death rate, in per time (time ^-1) units.
+  mu: Immigration rate, in per time (time ^-1) units.
+  K: Carrying capacity.
+  time_v: Vector of times to sample. Must start with 0.
+  type: Type of inmigration, birth, death- model used to simulate the dynamics. This must be "Kendall", "Alonso" or "Haegeman".
+
+We'll start with balanced birth and death rates of 0.3, an immigration rate from the mainland to the island of 0.01, and a carrying capacity of 300.  We'll start with a population size of 50 and simulate 50 time steps.
+```{r}
+set.seed(12345) # Set the seed
+
+# Simulate the mainland-island model
+model1 <- ibd_models(n0 = 50, beta = 0.3, delta = 0.3, mu = 0.01, K = 300, 
+                      time_v = 0:50, type = "Alonso")
+
+#Plot the results
+plot(model1, type = "l", main = "Mainland-island model")
+```
+
+## Question 1 (1.5 pts) ##
+**1a) Now let's change the carrying capacity to see what effect it has on population size and persistence.  In the box below, change the carrying capacity to 100, leave all other parameters the same, and rerun the simulation. Assign the results to an object named model 2. [0.5 pts]**
+```{r}
+set.seed(12345)
+
+
+
+# And plot the results...
+plot(model2, type = "l", main = "Mainland-island model")
+```
+
+**1b) And now, run the simulation again with the carrying capacity still at 100 but with the immigration rate increased to 0.05.  Leave all other parameters the same. Assign the results to an object named model3. [0.5 pts]**  
+```{r}
+set.seed(12345)
+
+
+
+# And plot the results...
+plot(model3, type = "l", main = "Mainland-island model")
+```
+
+**1c) Generally speaking, what are the effects of carrying capacity and immigration rate on population size? [0.5 pts]**
+>> [YOUR ANSWER]
+
+
+## Part 1b: Empirical Island Biogeography ##
+
+The three simulations above show us what happens to the population dynamics on islands under different conditions.  Next, let's look at what happens to the colonization and extinction rates.  We can use the regular_sampling_scheme() function to estimate the colonization and extinction rates for a simulated or empirical dataset.
+
+regular_sampling_scheme(x, vector, level = NULL)
+  x: a single population/community dataset
+  vector: a vector indicating the columns with the presence-absence data
+  level: the name of the column containing groups for subsetting
+
+Here, we'll simulate 100 species colonizing and (potentially) going extinct on an island.  For each time step, we record whether the species is present or absent, and then we use regular_sampling_scheme() to estimate the colonization (c) and extinction (e) rates on the simulated island.
+```{r}
+pops <- matrix(nrow=100, ncol=101)
+for(i in 1:100){
+  sim <- ibd_models(n0 = 0, beta = 0.2, delta = 0.3, mu = 0.004, K = 100, 
+                      time_v = 0:100, type = "Alonso") #Simulations
+  pops[i, ] <- as.numeric(sim[, 2] > 0)
+}
+
+regular_sampling_scheme(pops, vector=1:101)
+```
+
+Now that you see how we run one of these simulations and estimate the c/e rates, let's explore the effects of changing carrying capacity on the c/e rates.  We'll do this by running a series of simulations just like the one above but with a range of K values.
+```{r}
+set.seed(12345)
+Ks <- seq(from=10, to=100, by=10) # Carrying capacities
+out <- NULL # Initializing output
+
+for(K in Ks){
+  pops <- matrix(nrow = 100, ncol = 101)
+  for (i in 1:100){
+    sim <- ibd_models(n0 = 0, beta = 0.2, delta = 0.3, mu = 0.004, K = K, 
+                      time_v = 0:100, type = "Alonso") #Simulations
+    pops[i, ] <- (sim[, 2] > 0) * 1.0
+  }
+out <- rbind(out, c(K, regular_sampling_scheme(pops, 1:101)))
+}
+
+# Plot the results...
+plot(out[, 1], out[, 2], type = "b", xlab = "Carrying capacity", ylab = "Rate", 
+     col = "darkgreen", main = "Effect of K on colonization and extinction rates")
+lines(out[, 1], out[, 5], type = "b", col = "magenta")
+legend(10, .35, legend=c("Colonization", "Extinction"),
+       col=c("darkgreen", "magenta"), pch = 21, lty=1, pt.bg = "White",  cex=0.8)
+```
+
+## Question 2 (1 pt) ##
+**2a) In general terms, what happens to the colonization rate and the extinction rate as carrying capacity increases? [0.5 pts]** 
+>> [YOUR ANSWER]
+
+**2b) In lecture, we discussed MacArthur and Wilson's theory of island biogeography in terms of island size and distance from the mainland.  In the simulation models we ran above using the ibd_models() function, which one of the parameters represents island size, and which one represents distance from the mainland?  Explain your answer. [0.5 pts]**
+>> [YOUR ANSWER]
+
+
+Next, let's explore some real empirical data on island biogeography.  We can access the data for Simberloff's island recolonization study through the island package using the data() function.  The dataset includes presence/absence records over a time series of observations for dozens of insect species on six islands.  Let's pull out the data for island "ST2" and see what it contains.
+```{r}
+data("simberloff")
+st2 <- simberloff[[6]]
+
+# View the data
+kable(st2[1:8,]) 
+```
+
+In the table above, each row contains the presence or absence records for a different species, and the numbered columns represent the days on which sampling occurred.  You can see that the sampling days are irregularly spaced, so we can use the island package's irregular_single_dataset() function to estimate the colonization and extinction rates for this dataset.
+```{r}
+# Presence-absence data is in columns 3 to 16.
+rates.st2 <- irregular_single_dataset(dataframe = st2, vector = 3:16, c = 0.001, e = 0.001, assembly = TRUE, jacobian = TRUE)
+rates.st2
+
+```
+In these results, c is the colonization rate, e is the extinction rate, and NLL is the model fit (negative log-likelihood).
+
+We can also calculate the colonization rates for different groups.  Here, we'll calculate the rates for the different insect orders by specifying "Tax. Unit 1" for the column argument.  This tells the function to calculate different rates for each taxonomic group.
+```{r}
+rates.groups <- irregular_single_dataset(dataframe = st2, vector = 3:16, c = 0.001, e = 0.001, column = "Tax. Unit 1", n = 5, assembly = TRUE, jacobian = TRUE)
+rates.groups
+```
+
+We can also perform a simulation based on the empirical data using the data_generation() function.  Here, to explore how species richness changes over time on the ST2 island, we'll perform 300 simulations with the colonization and extinction rates inferred from the empirical dataset.
+```{r}
+dts <- as.numeric(colnames(st2)[4:16]) - as.numeric(colnames(st2)[3:15])
+dts <- c(21, dts)
+
+tps <- cetotrans(c = rep(rates.st2[[1]], length(dts)), e = rep(rates.st2[[4]], length(dts)), dt = dts)
+sims <- data_generation(x = matrix(0, 80, 1), column = 1, transitions = tps, iter = 300, times = length(dts))
+ic <- apply(sims, 1, quantile, probs = c(0.025, 0.975))
+med.st2 <- apply(sims, 1, median)
+
+days <- c(0, colnames(st2)[3:16]) 
+
+plot(days, c(0, colSums(st2[, 3:16])), ylim = c(0, 40), xlab = "Days since defaunation", ylab = "Species richness", main = "ST2", type = "b")
+lines(days, c(0, med.st2), col = "green", lty = 2)
+lines(days, c(0, ic[1, ]), col = "magenta", lty = 3)
+lines(days, c(0, ic[2, ]), col = "magenta", lty = 3)
+```
+The points connected with black lines indicate the observed species richness, while the red dashed lines indicate the 95% confidence interval from the simulations, and the green dashed line represents the median richness for the 300 simulations.
+
+## Question 3 (0.5 pts) ##
+**How long does it take species richness on the island to reach stationarity?**
+>> [YOUR ANSWER]
+
+
+The Simberloff dataset contains data on six islands, so we can test whether each island has different c/e rates or whether they all have the same rates.  We'll do this by comparing a model that has one set of rates (Model A) to one with separate rates for each island (Model B).  
+
+First, we need to infer the rates for all the islands together and for each island separately. 
+```{r}
+# Estimate rates for all islands together
+rates.all <- irregular_multiple_datasets(list = simberloff, vectorlist = list(3:17, 3:18, 3:17, 3:15, 3:17, 3:16), c = 0.001, e = 0.001, jacobian = T, CI = T)
+
+# Estimate rates for each island individually
+rates.island <- irregular_multiple_datasets(list = simberloff, vectorlist = list(3:17, 3:18, 3:17, 3:15, 3:17, 3:16), c = 0.001, e = 0.001, jacobian = TRUE, column = "Island", n = 13, CI = TRUE)
+
+
+rates.all
+rates.island
+```
+
+The negative log-likelihood (NLL) gives us an estimate of the model fit.  We can sum the NLLs for each of the islands to get an estimate of the NLL for the individual island rates model (Model B).
+```{r}
+ModelA <- rates.all$NLL
+ModelB <- sum(rates.island$NLL)
+
+ModelA
+ModelB
+```
+
+You can see that Model B has the lower NLL, but of course we know that the optimal model is the one with the best model score not just the best model fit.  We can calculate the AIC score for each model using the akaikeic() function.
+
+akaikeic(NLL, k)
+  NLL: Negative Log-Likelihood of the models.
+  k: Number of parameters of the models.
+  
+## Question 4 (2 pts) ##
+**4a) Calculate the AIC for each model in the box below.  You will need to determine the number of parameters for each model.  That can be really complicated for some models, but fortunately these models are relatively simple.  We have a parameter for colonization rate and a parameter for extinction rate.  You just need to figure out how many are in Model A and Model B. [1 pt]**
+
+```{r}
+
+
+
+```
+
+**4b) Which is the optimal model?  Given what we know about Simberloff's experiment, does this answer make sense?  Explain your answers. [1 pt]**
+>> [YOUR ANSWER]
+
+
+-------------------------------------
+
+## Part 2a: Least Cost Path Analysis ##
+
+Now, let's turn to examining how we can identify dispersal corridors on landscapes.  First, we'll identify the least cost paths between points on a heterogeneous landscape.  The least cost path is the path of single cells between two points that minimizes the total cumulative cost of moving through all cells in the path.
+
+There are basically four steps in a least cost path analysis:
+1) Assemble the dataset, which includes a landscape raster and a set of point localities.
+2) Create a raster of resistance values for each cell (the resistance/cost raster).
+3) Construct rasters of total accumulated costs for each starting point to every other cell on the landscape (the cost distance rasters).
+4) Calculate the least cost paths between points from the cost distance rasters.
+
+We will start by reading in a raster layer for our study landscape and a set of point localities.  For our landscape layer, we will use one of the SDMs we constructed in lab 10 (for the California red-legged frog, Rana draytonii).  In this raster, the value of each cell represents the habitat suitability (on a scale from 0 to 1) that we modeled for this species.
+```{r}
+# Load SDM raster
+sdm <- raster("SDM.tif")
+
+# Load point localities
+sp <- read.csv("pts.csv")
+sp <- SpatialPoints(sp)
+
+# And plot the data
+sdmCol <- colorRampPalette(c("blue", "green", "yellow", "orange", "red"))
+plot(sdm, col=sdmCol(100))
+points(sp, pch=0, cex=2)
+points(sp, pch=c("1", "2", "3", "4", "5"), cex=0.75)
+```
+
+And then we can create a resistance raster based on our habitat suitability raster.  To do this, we want to subtract the habitat suitability values from 1, because more suitable habitat should have lower resistance.  This will give us a raster of values that range from 0 to 1, with higher values indicating more landscape resistance.  This would normally be all we need to do, but the gdistance package we're using to perform the analysis actually wants the input raster as a 'conductance' raster rather than a 'resistance' raster.  Conductance is just the inverse of resistance (1/resistance), so the values for our final raster will need to be 1 / (1 - habitat suitability).
+```{r}
+conductance.r <- 1/(1-sdm)
+
+# And plot the results...
+resCol <- colorRampPalette(c("yellow", "red", "blue"), bias=2)
+plot(1/conductance.r, col=resCol(100), main="Resistance Raster") # Plotting the inverse of "conductance," which is "resistance"
+points(sp, pch=0, cex=2)
+points(sp, pch=c("1", "2", "3", "4", "5"), cex=0.75)
+```
+
+Now we can create a transition surface using the transition() function in the gdistance package.
+
+transition (x, transitionFunction, directions, ...)
+  x: RasterLayer or RasterBrick
+  transitionFunction: function to calculate transition values from grid values
+  directions: number of directions in which cells are connected (4, 8, 16, or other)
+  
+Because we have real geographic coordinates, we also need to correct for the projection of the raster, and because we are using an 8-neighbor rule we also have to correct for variation in the distances between cells (because diagonal movements are longer).  We do this with the geoCorrection() function in the gdistance package.
+
+```{r}
+trSurface <- transition(conductance.r, transitionFunction = mean, directions = 8)
+trSurface <- geoCorrection(trSurface, type="c", scl = FALSE)
+trSurface # Check the result
+```
+
+Next, we generate a cost distance raster using the accCost() function from gdistance - accCost stands for accumulated cost.
+
+accCost(x, fromCoords)
+  x: TransitionLayer object
+  fromCoords: SpatialPoints, vector or matrix with coordinates of origin points
+  
+```{r}
+costSurface <- accCost(trSurface, sp[1]) # Cost surface starting from point 1
+
+# And plot the results...
+dCol <- colorRampPalette(c("yellow", "orange", "red", "deeppink","purple", "blue"), bias=1, interpolate="linear")
+plot(costSurface, col=dCol(100))
+points(sp, pch=0, cex=2)
+points(sp, pch=c("1", "2", "3", "4", "5"), cex=0.75)
+```
+
+### Question 5 (1 pt) ###
+**Which areas have a higher cost distance and which areas have lower cost distance?  Explain briefly what cost distance means in plain terms.**
+>> [YOUR ANSWER]
+
+
+Now we're ready to calculate the least cost paths and see where they are on the map.  For that, we need gdistance's shortestPath() function.
+
+shortestPath (x, origin, goal)
+  x: TransitionLayer object
+  origin: SpatialPoints, vector or matrix with coordinates, at the moment only the first cell is taken into account
+  goal: SpatialPoints, vector or matrix with coordinates
+
+```{r}
+paths <- shortestPath(trSurface, sp[1], sp, output="SpatialLines")
+paths # Check that it worked
+```
+
+The output is a SpatialLines object that we can plot on the map.
+```{r}
+plot(sdm, col=sdmCol(100))
+points(sp, pch=0, cex=2)
+points(sp, pch=c("1", "2", "3", "4", "5"), cex=0.75)
+lines(paths, col="darkred", lwd=2)
+```
+
+The shortestPath() function only uses a single point in the origin argument.  So, to get the full set of paths, we should write a loop that cycles through all of the points.  
+
+### Question 6 (2 pts) ###
+**In the code chunk below, calculate all of the least cost paths for points 2 through 5.  You can use the rbind() function to combine SpatialLines objects, which is like using c() to combine elements into a vector or using stack() for combining rasters into a raster stack.  Add the new spatial lines for the least cost paths into the object named paths that we created above.**
+```{r}
+
+
+```
+
+And then we can plot all of the paths on the SDM map.
+```{r}
+plot(sdm, col=sdmCol(100))
+points(sp, pch=0, cex=2)
+points(sp, pch=c("1", "2", "3", "4", "5"), cex=0.75)
+lines(paths, col="darkred", lwd=2)
+```
+
+Next, we can calculate all of the pairwise least cost path distances between our points.  We can actually do this without running shortestPath() first; that step is just for retrieving the paths themselves.  Anyway, to get the cost distance along the LCPs, we'll use gdistance's costDistance() function.  The output is a vector of the least cost path distances, which we can turn into a matrix for easier viewing.
+
+costDistance(x, sp)
+  x: TransitionLayer object
+  sp: SpatialPoints or SpatialPolygons object
+
+```{r}
+costDists <- costDistance(trSurface, sp) # Calculate cost distance for all points
+costDists <- as.matrix(costDists) # Transform distance vector into a matrix
+costDists # Show us the result
+```
+
+Let's also calculate straight line (Euclidean) distances for comparison.  For that, we'll use the pointDistance() function in the raster package.
+
+pointDistance (p1, p2, lonlat)
+  p1: x and y coordinate of first (set of) point(s), either as c(x, y), matrix(ncol=2), or SpatialPoints*.
+  p2: x and y coordinate of second (set of) second point(s) (like for p1). If this argument is missing, a distance matrix is computed for p1
+  lonlat: If TRUE, coordinates should be in degrees; else they should represent planar ('Euclidean') space (e.g. units of meters)
+
+```{r}
+strtDists <- pointDistance(sp, lonlat = TRUE)
+strtDists <- as.matrix(strtDists)
+strtDists
+```
+
+Plot straight line vs. cost distances...
+```{r, fig.width=5}
+plot(strtDists[lower.tri(strtDists)], costDists[lower.tri(costDists)], pch=16, xlab="Euclidean Distance", ylab="LCP Distance")
+```
+
+And run a simple Mantel test to see how similar they are.  The Mantel test is a linear regression analysis for distance matrices - Mantel's r statistic tells us how closely correlated the two distance matrices are, and the p-value ("significance") tells us whether the correlation is significantly different from that expected by chance.
+```{r}
+mantel(costDists, strtDists)
+```
+
+----------------------------------------------
+## Part 2b: Circuit Theory Distance Analysis ##
+
+LCPA has been criticized because it only calculates the single (one cell wide) least cost path between points, which may be an unrealistic representation of actual dispersal on a complex landscape.  Several alternatives have been proposed.  One of the more popular ones is the calculation of resistance distances based on circuit analysis.  Basically, this approach treats all of the points as nodes in a circuit that are connected by different resistors.  The flow of individuals, genes, or whatever, is analogous to the flow of electricity across the circuit.  Functionally, the difference between circuit theory distance and least cost path distance is that the circuit distance is a weighted average of all possible connections in the graph, whereas LCP distance is only the shortest/least cost.  Calculating resistance distances is pretty easy using gdistance's commuteDistance() function.
+
+commuteDistance(x, sp)
+  x: TransitionLayer object
+  sp: SpatialPoints or SpatialPolygons object
+
+### Question 7 (1 pts) ###
+**In the code chunk below, calculate the circuit theory distances using the commuteDistance() function for all of the points.  Assign the distances to a matrix object named circuitDists.**
+```{r}
+
+
+```
+
+See how these compare to the cost distances...
+```{r, fig.width=5}
+plot(circuitDists[lower.tri(circuitDists)], costDists[lower.tri(costDists)], pch=16, xlab="Circuit Distance", ylab="LCP Distance")
+```
+
+And run a simple Mantel test to see how correlated they are...
+```{r}
+mantel(costDists, circuitDists)
+```
+
+### Question 8 (1 pt) ###
+**Are the Euclidean distances or Circuit Theory distances more closely correlated with the Least Cost Path distances?  Explain your answer.**
+>> [YOUR ANSWER]
+
+----------------------------------
+
+## Part 2c: Least Cost Corridors ##
+
+Finally, instead of calculating just the single least cost path, we can also calculate a landscape corridor that incorporates a cost distance buffer around the LCP.  Basically, this approach gives us all of the paths that have a cost distance within 5% of the least cost path distance.  There are three steps required to implement this analysis:
+1) For every pair of points, create rasters of cost distances from each point. 
+2) Add the rasters together.
+3) Delete any cells that have a summed cost greater than twice the LCP distance plus a 5% buffer.
+The result is a map of potential dispersal corridors weighted by total cost.
+
+### Question 9 (2 pts) ###
+**In the code chunk below, implement this method to identify the least cost corridor between points 1 and 3.  The result should be a raster layer named corridor.r that contains the map for the least cost corridor.**  
+Hint: You can "delete" cells in a raster by changing them into NA values under a condition.
+e.g. raster1[raster1 > 0.5] <- NA  # Changes all cells in raster1 greater than 0.5 to NA. 
+```{r}
+
+
+```
+
+And plot the result...
+```{r}
+plot(corridor.r, col=resCol(100))
+points(sp[c(1,3)], pch=0, cex=2)
+```
+
+
+### The End ###
