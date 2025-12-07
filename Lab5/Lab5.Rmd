@@ -1,0 +1,347 @@
+---
+title: 'ESPM 137, Lab 5: Neutral Landscape Models'
+output:
+  html_document: default
+---
+
+#! This lab is worth 10 points and is due on Friday, 10/2, at 5pm !#
+
+## Overview and Goals
+
+In this lab, we will generate different neutral landscape models (NLMs) and use them to examine the effects of scaling and to test whether the pattern on a study landscape is significantly different from neutral expectations.
+
+Goals--
+1: Explore different neutral landscape models (NLMs)
+2: Examine the effects of scaling on simple landscape metrics.
+3: Compare maps of forest loss in CA to NLMs to test whether forest loss is spatially random.
+
+### Set up the R session ###
+
+Load required packages...
+```{r packages, include=FALSE}
+# Start with a clean slate...
+rm(list = ls()) 
+
+# Make a list of the packages we need, check whether they're installed, and install the ones we're missing...
+required.pkg <- c("raster", "NLMR", "landscapetools", "usdm", "devtools", "R.utils")
+pkgs.not.installed <- required.pkg[!sapply(required.pkg, function(p) require(p, character.only=T))]
+if (length(pkgs.not.installed) > 0) install.packages(pkgs.not.installed, dependencies=TRUE)
+
+# Load the required libraries...
+lapply(required.pkg, library, character.only = TRUE) 
+
+packageurl <- "https://cran.r-project.org/src/contrib/Archive/SDMTools/SDMTools_1.1-20.tar.gz"
+install.packages(packageurl, repos=NULL, type="source")
+library(SDMTools)
+
+# Set up required functions...
+PatchSD <- function(x){
+  p_sd <- ClassStat(x, bkgd=1)
+  return(p_sd$sd.patch.area)
+}
+ShapeIndex <- function(x){
+  s_idx <- ClassStat(x, bkgd=1)
+  return(s_idx$lanscape.division.index)
+}
+nlm_fc <- function(ncol, nrow, p){
+  raster_fc <- nlm_mpd(ncol, nrow, roughness=0.95)
+  rcl <- matrix(c(0,quantile(raster_fc, p),0,quantile(raster_fc, p),1,1),nrow=2,ncol=3,byrow=T)
+  raster_fc <- reclassify(raster_fc, rcl)
+  return(raster_fc)
+}
+```
+
+Set markdown preferences...
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+path <- "~/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab5"
+setwd(path)
+knitr::opts_knit$set(root.dir = path) # Make sure knitr knows your wd
+
+```
+
+--------------------------------------------
+
+## Part 1: NLMs with Continuous Variables ##
+
+There are many different neutral landscape models, and each can serve several purposes.  In this section, we will explore three common NLMs.  All of these will be constructed using the NLMR package.  Each one is randomly generate, so you will get a slightly different landscape each time you run the function to create an NLM.  
+
+First, let's take a quick look at a simple random NLM. We can create a random NLM raster using the nlm_random() function. 
+
+Usage
+  nlm_random(ncol, nrow, resolution = 1, rescale = TRUE)
+Arguments
+  ncol: Number of columns forming the raster.
+  nrow: Number of rows forming the raster.
+  resolution: Resolution of the raster.
+  rescale: If TRUE (default), the values are rescaled between 0-1.
+
+Generate a simple random NLM...
+```{r, warning=FALSE}
+random.NLM <- nlm_random (ncol=100, nrow=100)
+plot(random.NLM)
+```
+
+Now, let's look at a slightly more complex NLM, a fractal model.  This model uses a fractal algorithm to produce a raster with  neutral spatial structure.  We can use the nlm_mpd() function to create one.
+
+Usage
+  nlm_mpd(ncol, nrow, resolution = 1, roughness = 0.5, rand_dev = 1, rescale = TRUE)
+Arguments
+
+ncol: Number of columns forming the raster.
+nrow: Number of rows forming the raster.
+resolution: Resolution of the raster.
+roughness: Controls the level of spatial autocorrelation (!= Hurst exponent)
+rand_dev: Initial standard deviation for the displacement step (default == 1), sets the scale of the overall variance in the resulting landscape.
+rescale: If TRUE (default), the values are rescaled between 0-1.
+
+When we talked about fractal NLMs in lecture, we called the rand_dev argument the sigma-squared parameter (the standard deviation).  Increasing rand_dev increases the total variance.  We also referred to the H parameter (the Hurst exponent) that controls the distance of each step (and therefore the degree of spatial autocorrelation).  The nlm_mpd() function uses the roughness argument instead, which is a little different from the H parameter.  Whereas increasing the H parameter increases spatial autocorrelation (by decreasing step distance), increasing the roughness decreases the spatial autocorrelation on the resulting raster (by increasing step distance).
+
+Generate a fractal NLM and plot the result...
+```{r, warning=FALSE, message=FALSE}
+set.seed(222)
+fractal_1.0 <- nlm_mpd(ncol=200, nrow=200, roughness=1, rand_dev=1)
+plot(fractal_1.0)
+```
+
+### Lab Question 1 (1 pt) ###
+**Why do we often prefer more complex NLMs like fractal models to simpler ones like the random model?**
+>> Fractal models better represent a  natural landscape pattern than simple random models.
+
+### Lab Question 2 (1 pt) ###
+**Next, let's explore how changing one of the parameters used to generate an NLM changes the resulting raster.  In this case, we're going to change that H parameter (roughness) in the fractal model.  In the code chunk below, create a fractal NLM with roughness = 0.5, and assign it to an object named fractal_0.5.  Then create another fractal NLM with roughness 1.5, and assign it to an object named fractal_1.5.  Both NLMs should have 200 rows and 200 columns, rand_dev=1, and resolution=1.**
+```{r, warning=FALSE, message=FALSE}
+set.seed(222) # No need to change this.
+fractal_0.5 <- nlm_mpd(ncol=200, nrow=200, roughness=0.5, rand_dev=1)
+fractal_1.5 <- nlm_mpd(ncol=200, nrow=200, roughness=1.5, rand_dev=1)
+
+
+# Check to see they were created properly
+fractal_0.5
+fractal_1.5
+```
+You'll noticed that the fractal algorithm actually produces a raster with more cells than we specified.  That's just because of how the algorithm runs.  We could crop it down to the 200 x 200 size we specified, but there's no real reason for us to worry about that right now.
+
+Now, let's plot the three fractal NLMs side by side...
+```{r, warning=FALSE, message=FALSE}
+fractals <- stack(fractal_0.5, fractal_1.0, fractal_1.5)
+names(fractals) <- c("Roughness_0.5", "Roughness_1.0", "Roughness_1.5")
+plot(fractals, nrow=1, ncol=3)
+```
+
+Remember the semivariogram?  Let's calculate the semivariograms to examine the spatial structure of variation on our fractal NLMs.
+```{r}
+# Calculate the semivariograms
+var_0.5 <- Variogram(fractal_0.5)
+var_1.0 <- Variogram(fractal_1.0)
+var_1.5 <- Variogram(fractal_1.5)
+
+# Plot the results
+plot(var_0.5, main="Semivariogram, Roughness=0.5")
+plot(var_1.0, main="Semivariogram, Roughness=1.0")
+plot(var_1.5, main="Semivariogram, Roughness=1.5")
+```
+
+### Lab Question 3 (1 pt) ###
+**3a) Based on the raster plots and the semivariograms, which of the fractal NLMs has the highest level of spatial autocorrelation?**
+>> The fractal NLM with roughness of 0.5 has the highest level of spatial correlation.
+
+**3b) Based on the semivariograms, what are the range distances for each of the fractal NLMs?**
+>> Fractal_0.5 = [0,0.03], Fractal_1 = [0,0.014], Fractal_1.5 = [0, 0.012]
+
+---------------------------------------------
+
+## Part 2: NLMs with Categorical Variables ##
+
+In Part 1, we used two different kinds of NLMs to create rasters with continuous variables.  We can also create NLMs for categorical variables.  Probably the most commonly used categorical NLM is the random cluster model.  
+
+Usage
+  nlm_randomcluster(ncol, nrow, resolution = 1, p, ai = c(0.5, 0.5), rescale = TRUE)
+Arguments
+  ncol: Number of columns forming the raster.
+  nrow: Number of rows forming the raster.
+  resolution: Resolution of the raster.
+  p: Controls the density of clustering on the raster (values of p > 0.55 will cause most of the raster to merge into 
+      a single cluster.
+  ai: Vector with the cluster type distribution (percentages of occupancy). This directly controls the 
+      number of types via the given length.
+  rescale: If TRUE (default), the values are rescaled between 0-1.
+
+Generate a random cluster NLM...
+```{r, warning=FALSE}
+set.seed(444)
+cluster_1x1 <- nlm_randomcluster(100, 100, p=0.4, ai=c(0.5, 0.5))
+plot(cluster_1x1)
+```
+
+One of the ways in which NLMs are commonly used in landscape ecology is to explore the effects of changing the data (e.g. scaling) or the underlying landscapes (e.g. landscape change).  Let's see what happens to some simple landscape metrics when we change the resolution (grain size) of the random cluster NLM.  Here, we'll use the aggregate() function to group sets of cells into a new cells with larger grain size.
+
+Usage
+  aggregate(x, fact = 2, fun = mean)
+Arguments
+  x: A raster object
+  fact: Aggregation factor expressed as number of cells in each direction (horizontally and vertically) 
+        to aggregate (default = 2).
+  fun: function used to aggregate values (default = mean)
+  
+In the arguments for the aggregate() function, the 'fun' argument sets the function that will be used to calculate the value for the new cells.  The default is 'mean' which results in the new cells being assigned the mean (average) of the smaller cells aggregated into them.  If we change 'fun' to 'modal' then we can institute a majority rule for the assignment of values to the new cells - this means that the value that is most common among the cells being aggregated will be assigned to the new cell.  This is useful when we have categorical data, like different landcover/habitat types.
+
+Let's create a new raster that rescales the grain size by a factor of 2.
+```{r, warning=FALSE}
+cluster_2x2 <- aggregate(cluster_1x1, fact=2, fun="modal")
+plot(cluster_2x2)
+```
+
+### Lab Question 4 (1 pt) ###
+**Let's also create some aggregated rasters at other scales.  In the code chunk below, construct rasters with 4x4 and 8x8 grain size from the original cluster_1x1 raster.  Make sure you continue to use the majority rule when aggregating cells.**
+```{r, warning=FALSE}
+
+cluster_4x4 <-aggregate(cluster_1x1, fact=4, fun="modal")
+cluster_8x8 <- aggregate(cluster_1x1, fact=8, fun="modal")
+
+
+# Plot the results
+plot(cluster_4x4)
+plot(cluster_8x8)
+```
+
+Next, let's calculate some basic metrics for each of our clusters.  We'll use the ClassStat() function to calculate three simple metrics: the proportion of the landscape covered by the habitat class 1 (prop), the number of patches of habitat 1 (Npatches), and the mean area of each patch (patchArea).
+```{r, warning=FALSE}
+# No need to change anything in this code chunk.
+clusterNLMs <- list(cluster_1x1, cluster_2x2, cluster_4x4, cluster_8x8)
+prop <- c()
+Npatches <- c() 
+patchArea <- c()
+
+for(i in 1:4){
+  metrics <- ClassStat(clusterNLMs[[i]])
+  prop[i] <- metrics$prop.landscape
+  Npatches[i] <- metrics$n.patches
+  patchArea[i] <- metrics$mean.patch.area*(2^i)
+}
+
+land.stats <- data.frame(prop, Npatches, patchArea)
+rownames(land.stats) <- c("1x1", "2x2", "4x4", "8x8")
+land.stats
+```
+
+We can also plot the three metrics vs. grain size...
+```{r}
+# No need to change anything in this code chunk.
+grain <- c(1, 2, 4, 8)
+plot(prop~grain, pch=15, main="Proportion of Landscape", xlab="grain size")
+lines(prop~grain, lty=2)
+
+plot(Npatches~grain, pch=15, main="Number of Patches", xlab="grain size")
+lines(Npatches~grain, lty=2)
+
+plot(patchArea~grain, pch=15, main="Mean Patch Area", xlab="grain size")
+lines(patchArea~grain, lty=2)
+```
+You can see from these examples how some simple landscape metrics can change substantially with different grain size.  Some changes are more or less linear, some are exponential decay, and some are irregular.
+
+### Lab Question 5 (2 pts) ###
+**Why does the number of patches decrease as grain size increases?  Why does mean patch area increase as grain size increases?**
+>> The number of patches decreases as grain size increases because neighboring cells of smaller patches group into together to form one patch. Mean patch area increases as grain size increases because as nearby cells from different, smaller patches group into a single patch, that single patch takes on the additional area of each of the cells.
+
+------------------------------------------------
+
+## Part 3: Using NLMs to Test Null Hypotheses ##
+
+Finally, in landscape ecology we also frequently use NLMs to test whether an observed landscape pattern was generated by neutral processes or by ecological processes.  Our null hypothesis is that the landscape pattern is a neutral pattern (a spatially random pattern), and our alternative hypothesis is that the landscape pattern is non-random.  If we reject the null hypothesis, it means that we conclude the observed pattern is significantly different from the NLM pattern.  If we cannot reject the null hypothesis, it means that the observed pattern is indistinguishable from the NLM pattern.
+
+Let's first read in a raster for a real landscape.  This raster includes areas of forest loss (since 2012) that resulted primarily from drought mortality and pine beetle infestation in the Sierra National Forest in the central Sierra Nevada Mountains.  Raster values of 0 correspond to areas where forest has been lost, and values of 1 correspond to areas that still have forest cover.
+```{r, warning=FALSE}
+SierraNF <- raster("SierraNF.tif")
+plot(SierraNF) # Plot the raster
+SierraNF # Show us the raster info
+```
+
+Our goal here is to test whether the pattern of deforestation in Los Padres National Forest is significantly different from a neutral, spatially random pattern.  To do this, we'll need to compare some metrics between the Los Padres raster and some NLMs.  We have many potential choices, but here we'll compare two metrics that basically allow us to perform a lacunarity analysis.  Lacunarity analysis quantifies the size distribution of gaps (deforested areas, in this case) on a landscape and their spatial arrangement.  So, here, we'll calculate the standard deviation (SD) of patch areas and the landscape shape index.  The SD of patch areas tells us about the distribution of patch sizes, and the landscape shape index is a way of quantifying how the patches are arranged.  You don't have to worry about exactly how these numbers are calculated right now.  For purposes of this lab, we can calculate them using the PatchSD() and ShapeIndex() functions.
+
+Usage
+  PatchSD(x)
+Arguments
+  x: a raster object from which to calculate the standard deviation of patch areas
+  
+Usage
+  ShapeIndex(x)
+Arguments
+  x: a raster object from which to calculate the landscape shape index
+  
+Calculate the metrics for our Sierra National Forest raster...
+```{r}
+SNF.sd <- PatchSD(SierraNF)
+SNF.shape <- ShapeIndex(SierraNF)
+
+writeLines("Patch SD:")
+SNF.sd
+writeLines("Shape Index:")
+SNF.shape
+```
+
+Now we need something to compare these observed metrics with: a null distribution.  In this case, we can get a null distribution by calculating these metrics on a set of NLMs.  Basically, we will generate a series of landscapes under a neutral model to see if the Sierra National Forest landscape is significantly different from a neutral landscape.
+
+We'll use a fractal cluster NLM, because it is the most similar to our Sierra National Forest landscape.  We can construct a fractal cluster raster using the nlm_fc() function.
+
+Usage
+  nlm_fc(ncol, nrow, p)
+Arguments
+  ncol: Number of columns forming the raster.
+  nrow: Number of rows forming the raster.
+  p: The proportion of habitat on the raster. 
+
+Let's generate a quick fractal cluster NLM just to see that it appears comparable to our study landscape (Sierra NF).  We'll just make a simple raster that has 150 x 100 cells and a proportion of gap habitat equal to 0.25.
+```{r, message=FALSE, warning=FALSE}
+set.seed(888)
+fc <- nlm_fc(ncol=150, nrow=100, p=0.25)
+plot(fc)
+```
+As you can see, the general structure of gaps on this NLM appears to be fairly similar to our Sierra Natioanl Forest landscape, which means it is a suitable NLM for us to use.
+
+### Lab Question 6 (2 pts) ###
+**Next, we need to generate a null distribution by making a set of NLMs using this model and calculating our two metrics on each of them.  In the chunk below, write the code that will generate 50 NLMs using the fractal cluster model.  We want the NLMs to be comparable to our study landscape, so make sure you set the numbers of rows and columns to be equal to the SierraNF raster.  The SierraNF raster has a proportion of gaps equal to 0.12, so you should also set this parameter to be the same on your NLMs.  From each raster, calculate the standard deviation of patch areas and the landscape shape index, and save the results to vectors named SD and shape.  You do not need to save the NLM rasters after you have calculated these metrics from them.  (This step will probably take several minutes to run.)**
+```{r, warning=FALSE, message=FALSE}
+SD <- c()
+shape <- c()
+
+for (i in 1:50) {
+  nlm <- nlm_fc(ncol=436, nrow=306, p=0.12)
+  SD[i] <- PatchSD(nlm)
+  shape[i] <- ShapeIndex(nlm)
+}
+
+
+
+
+```
+
+Now we can plot the distributions of our null estimates for each metric and our observed value.  The bars on the histogram correspond to the null values and the red line is our observed value (for Sierra NF).
+```{r}
+par(mfrow=c(1,2))
+hist(SD, main="SD Patch Area")
+abline(v=SNF.sd, col="red")
+hist(shape, main="Shape Index")
+abline(v=SNF.shape, col="red")
+```
+
+To test whether our observed value is significantly different from the null expectation, we compare our value to each of the null values to calculate the p-value to see how often it falls outside of the null distribution.  If p < 0.05 for both metrics then our finding suggests that the observed pattern is significantly different from the neutral pattern.
+```{r, warning=FALSE, message=FALSE}
+# No need to change anything in this code chunk.
+SD.p <- 1-mean(SNF.sd > SD) # Calculate p-value for SD Patch Area
+shape.p <- 1-mean(SNF.shape < shape) # Calculate p-value for Shape Index
+
+writeLines(c("SD Patch Area, p = ", SD.p), sep="")
+writeLines(c("\nShape Index, p = ", shape.p), sep="")
+```
+
+### Lab Question 7 (2 pts) ###
+**Based on these results, is the pattern of forest gaps in Sierra National Forest significantly different from the pattern on the NLMs?  What should we conclude about whether this pattern was generated by neutral processes or non-neutral processes (like anthropogenic or ecological processes)?**
+>> Based on these results the pattern of forest gaps in is not significantly different than the pattern on the NLM's. We can conclude this pattern was generated by neutral processes.
+
+---------------------
+
+## The End ##
+
+That's all for this week.  Don't forget to save your work.  And when you're done, knit it and submit it. 
