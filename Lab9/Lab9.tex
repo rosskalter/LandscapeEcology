@@ -1,0 +1,981 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={ESPM 137, Lab 9: Spatial Regression Analysis},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=1in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+
+\title{ESPM 137, Lab 9: Spatial Regression Analysis}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+
+\#! This lab is worth 10 pts and is due at 5pm on Friday, 10/30 !\#
+
+\hypertarget{overview-and-goals}{%
+\subsection{Overview and Goals}\label{overview-and-goals}}
+
+In this lab, we will perform sophisticated statistical regression
+analyses on GIS data layers to quantify the variables that contribute to
+tree species richness and reptile species richness across the U.S. We
+will perform both global (with and without spatial structure) and local
+spatial regression analyses and compare their results. View the lab
+intro video to learn more about these analysis methods.
+
+Goals-- 1: To learn how to perform spatial regression analysis on GIS
+data. 2: To learn how to interpret the output of spatial regression
+analysis. 3: To compare regression methods that include spatial
+structure to those that do not.
+
+\hypertarget{set-up-the-r-session}{%
+\subsubsection{Set up the R session}\label{set-up-the-r-session}}
+
+Load required packages\ldots{}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{part-1-changing-raster-projection-and-resolution}{%
+\subsection{Part 1: Changing Raster Projection and
+Resolution}\label{part-1-changing-raster-projection-and-resolution}}
+
+Read in rasters of temperature, precipitation, tree species richness,
+and reptile species richness\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{temp <-}\StringTok{ }\KeywordTok{raster}\NormalTok{(}\StringTok{"temp.tif"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in showSRID(uprojargs, format = "PROJ", multiline = "NO"): Discarded
+## datum Unknown based on WGS84 ellipsoid in CRS definition
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{precip <-}\StringTok{ }\KeywordTok{raster}\NormalTok{(}\StringTok{"precip.tif"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in showSRID(uprojargs, format = "PROJ", multiline = "NO"): Discarded
+## datum Unknown based on WGS84 ellipsoid in CRS definition
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Trees <-}\StringTok{ }\KeywordTok{raster}\NormalTok{(}\StringTok{"Trees.tif"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in showSRID(uprojargs, format = "PROJ", multiline = "NO"): Discarded
+## datum Unknown based on WGS84 ellipsoid in CRS definition
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Reptiles <-}\StringTok{ }\KeywordTok{raster}\NormalTok{(}\StringTok{"Reptiles.tif"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in showSRID(uprojargs, format = "PROJ", multiline = "NO"): Discarded
+## datum Unknown based on WGS84 ellipsoid in CRS definition
+\end{verbatim}
+
+Now let's plot the four rasters\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# First create some color schemes, for the sake of variety}
+\NormalTok{BlueRed <-}\StringTok{ }\KeywordTok{colorRampPalette}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\StringTok{"darkblue"}\NormalTok{, }\StringTok{"white"}\NormalTok{, }\StringTok{"darkred"}\NormalTok{)) }
+\NormalTok{TanGreen <-}\StringTok{ }\KeywordTok{colorRampPalette}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\StringTok{"tan"}\NormalTok{, }\StringTok{"darkgreen"}\NormalTok{))}
+\NormalTok{TanBlue <-}\StringTok{ }\KeywordTok{colorRampPalette}\NormalTok{(}\KeywordTok{c}\NormalTok{(}\StringTok{"wheat"}\NormalTok{, }\StringTok{"steelblue"}\NormalTok{, }\StringTok{"darkblue"}\NormalTok{))}
+
+\CommentTok{# Plot the four rasters}
+\KeywordTok{par}\NormalTok{(}\DataTypeTok{mfrow=}\KeywordTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(temp, }\DataTypeTok{col=}\KeywordTok{BlueRed}\NormalTok{(}\DecValTok{25}\NormalTok{), }\DataTypeTok{main=}\StringTok{"Annual Mean Temp."}\NormalTok{)}
+\KeywordTok{plot}\NormalTok{(precip, }\DataTypeTok{col=}\KeywordTok{TanBlue}\NormalTok{(}\DecValTok{25}\NormalTok{), }\DataTypeTok{main=}\StringTok{"Precipitation"}\NormalTok{)}
+\KeywordTok{plot}\NormalTok{(Trees, }\DataTypeTok{col=}\KeywordTok{TanGreen}\NormalTok{(}\DecValTok{25}\NormalTok{), }\DataTypeTok{main=}\StringTok{"Tree Species Richness"}\NormalTok{)}
+\KeywordTok{plot}\NormalTok{(Reptiles, }\DataTypeTok{col=}\KeywordTok{TanGreen}\NormalTok{(}\DecValTok{25}\NormalTok{), }\DataTypeTok{main=}\StringTok{"Reptile Species Richness"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Lab9_files/figure-latex/unnamed-chunk-2-1.pdf}
+
+Let's also read in a shapefile with state borders\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{states <-}\StringTok{ }\KeywordTok{readOGR}\NormalTok{(}\StringTok{"states"}\NormalTok{, }\DataTypeTok{layer =} \StringTok{"states"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## OGR data source with driver: ESRI Shapefile 
+## Source: "/Users/rosskalter/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab9/states", layer: "states"
+## with 51 features
+## It has 5 fields
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{states}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## class       : SpatialPolygonsDataFrame 
+## features    : 51 
+## extent      : -178.2176, -66.96927, 18.92179, 71.40624  (xmin, xmax, ymin, ymax)
+## crs         : +proj=longlat +datum=NAD83 +no_defs 
+## variables   : 5
+## names       : STATE_NAME, DRAWSEQ, STATE_FIPS,         SUB_REGION, STATE_ABBR 
+## min values  :    Alabama,       1,         01, East North Central,         AK 
+## max values  :    Wyoming,      51,         56, West South Central,         WY
+\end{verbatim}
+
+The projection for the states shapefile (a SpatialPolygonsDataFrame
+object) is also different from the projection of the four rasters. We
+can change the projection of a vector dataset using the spTransform()
+function in the rgdal package.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{states <-}\StringTok{ }\KeywordTok{spTransform}\NormalTok{(states, }\KeywordTok{CRS}\NormalTok{(}\StringTok{"+proj=longlat +datum=WGS84 +no_defs"}\NormalTok{))}
+\NormalTok{states}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## class       : SpatialPolygonsDataFrame 
+## features    : 51 
+## extent      : -178.2176, -66.96927, 18.92179, 71.40624  (xmin, xmax, ymin, ymax)
+## crs         : +proj=longlat +datum=WGS84 +no_defs 
+## variables   : 5
+## names       : STATE_NAME, DRAWSEQ, STATE_FIPS,         SUB_REGION, STATE_ABBR 
+## min values  :    Alabama,       1,         01, East North Central,         AK 
+## max values  :    Wyoming,      51,         56, West South Central,         WY
+\end{verbatim}
+
+Finally, let's crop the states shapefile to the extent of the
+temperature layer, and plot tree species richness with states
+overlaid\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{states <-}\StringTok{ }\KeywordTok{crop}\NormalTok{(states, }\KeywordTok{extent}\NormalTok{(temp))}
+\KeywordTok{plot}\NormalTok{(Trees, }\DataTypeTok{col=}\KeywordTok{TanGreen}\NormalTok{(}\DecValTok{25}\NormalTok{), }\DataTypeTok{main=}\StringTok{"Tree Species Richness"}\NormalTok{)}
+\KeywordTok{plot}\NormalTok{(states, }\DataTypeTok{add=}\OtherTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Lab9_files/figure-latex/unnamed-chunk-5-1.pdf}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{part-2-global-spatial-regression-analysis}{%
+\subsection{Part 2: Global Spatial Regression
+Analysis}\label{part-2-global-spatial-regression-analysis}}
+
+We could perform the spatial regression analysis on every single cell in
+the rasters, but that would take a long time, so we are going to draw a
+subsample of points to analyze instead. We'll subsample about 2.5\% of
+the points using the spsample() function.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{set.seed}\NormalTok{(}\DecValTok{21}\NormalTok{) }\CommentTok{# The seed allows us to choose the same set of random points each time}
+\NormalTok{pts <-}\StringTok{ }\KeywordTok{spsample}\NormalTok{(states, }\DataTypeTok{n=}\DecValTok{600}\NormalTok{, }\DataTypeTok{type=}\StringTok{"hexagonal"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in proj4string(obj): CRS object has comment, which is lost in output
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# And plot the results...}
+\KeywordTok{plot}\NormalTok{(Trees, }\DataTypeTok{col=}\KeywordTok{TanGreen}\NormalTok{(}\DecValTok{25}\NormalTok{), }\DataTypeTok{main=}\StringTok{"Tree Species Richness"}\NormalTok{)}
+\KeywordTok{points}\NormalTok{(pts, }\DataTypeTok{pch=}\StringTok{'+'}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Lab9_files/figure-latex/unnamed-chunk-6-1.pdf}
+
+\hypertarget{lab-question-1-1-pt}{%
+\subsubsection{Lab Question 1 (1 pt)}\label{lab-question-1-1-pt}}
+
+\textbf{In the chunk below, create a raster stack with the Trees,
+Reptiles, temp, and precip rasters. Then extract values for each point
+using the extract() function, and assign the extracted values to an
+object named vals.}
+
+extract(x, y) x: a Raster object y: a list of points
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# This is basically a freebie; just double-check that this is the right code.}
+\NormalTok{rs <-}\StringTok{ }\KeywordTok{stack}\NormalTok{(Trees, Reptiles, temp, precip)}
+\NormalTok{vals <-}\StringTok{ }\KeywordTok{extract}\NormalTok{(rs, pts)}
+
+\CommentTok{# Check that it worked...}
+\NormalTok{vals[}\DecValTok{1}\OperatorTok{:}\DecValTok{5}\NormalTok{, ]}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##         Trees Reptiles temp precip
+## [1,] 59.46759 49.38501  241   1367
+## [2,] 21.08283 49.53365  225    586
+## [3,] 48.01480 48.23573  228   1265
+## [4,] 11.22682 42.90447  228   1170
+## [5,] 17.95195 47.86488  221    543
+\end{verbatim}
+
+Now we need to create a data frame from the extracted values\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{dframe <-}\StringTok{ }\KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{lon =}\NormalTok{ pts}\OperatorTok{@}\NormalTok{coords[,}\DecValTok{1}\NormalTok{], }\DataTypeTok{lat =}\NormalTok{ pts}\OperatorTok{@}\NormalTok{coords[,}\DecValTok{2}\NormalTok{], }\DataTypeTok{TreeSpecies =}\NormalTok{ vals[,}\StringTok{"Trees"}\NormalTok{], }\DataTypeTok{ReptileSpecies =}\NormalTok{ vals[,}\StringTok{"Reptiles"}\NormalTok{], }\DataTypeTok{temperature =}\NormalTok{ vals[,}\StringTok{"temp"}\NormalTok{], }\DataTypeTok{precipitation =}\NormalTok{ vals[,}\StringTok{"precip"}\NormalTok{])}
+\NormalTok{dframe[}\DecValTok{1}\OperatorTok{:}\DecValTok{10}\NormalTok{,]}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##           lon      lat TreeSpecies ReptileSpecies temperature precipitation
+## 1   -80.30901 25.79108    59.46759       49.38501         241          1367
+## 2   -98.49686 26.95783    21.08283       49.53365         225           586
+## 3   -82.32988 26.95783    48.01480       48.23573         228          1265
+## 4   -80.98263 26.95783    11.22682       42.90447         228          1170
+## 5   -99.17049 28.12458    17.95195       47.86488         221           543
+## 6   -97.82324 28.12458    22.39311       57.09953         218           767
+## 7   -81.65625 28.12458    53.95510       53.43256         222          1222
+## 8  -103.88586 29.29133    16.33913       56.47482         206           277
+## 9   -99.84411 29.29133    27.36358       54.07272         202           616
+## 10  -98.49686 29.29133    38.66791       63.48143         210           664
+\end{verbatim}
+
+We can use the attach() function to allow us to call each variable in
+the data frame by name (as opposed to having to index its column out of
+the data frame)\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{attach}\NormalTok{(dframe) }
+\NormalTok{TreeSpecies[}\DecValTok{1}\OperatorTok{:}\DecValTok{10}\NormalTok{] }\CommentTok{# This will give us the extracted values for the TreeSpecies variable.}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##  [1] 59.46759 21.08283 48.01480 11.22682 17.95195 22.39311 53.95510 16.33913
+##  [9] 27.36358 38.66791
+\end{verbatim}
+
+Now, let's create a simple linear regression model to examine the
+relationship between Tree species richness, temperature, and
+precipitation. The lm() function fits a linear model to the variables in
+the equation we provide. This equation takes the form: y
+\textasciitilde{} x1 + x2 \ldots{} where y is the response variable, and
+x1, x2, etc., are the predictor variables.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{trees.model <-}\StringTok{ }\KeywordTok{lm}\NormalTok{(TreeSpecies }\OperatorTok{~}\StringTok{ }\NormalTok{temperature }\OperatorTok{+}\StringTok{ }\NormalTok{precipitation)}
+\KeywordTok{summary}\NormalTok{(trees.model)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = TreeSpecies ~ temperature + precipitation)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -95.572  -8.112  -0.202   9.171  37.388 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)   -11.312692   1.850632  -6.113 1.96e-09 ***
+## temperature     0.023270   0.014150   1.645    0.101    
+## precipitation   0.061374   0.001827  33.601  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 16.01 on 506 degrees of freedom
+## Multiple R-squared:  0.7156, Adjusted R-squared:  0.7144 
+## F-statistic: 636.5 on 2 and 506 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+From the output, you will see a table with the estimated regression
+coefficients (Estimate), the standard error for those estimates (Std.
+Error) and the p-value for each predictor variable,
+PR(\textgreater\textbar t\textbar). Below that, you will see the
+R-squared value fo the model, which is an estimate of the model fit, and
+the p-value for the whole regression model.
+
+\hypertarget{lab-question-2-1-pt}{%
+\subsubsection{Lab Question 2 (1 pt)}\label{lab-question-2-1-pt}}
+
+\textbf{Is this linear regression model a significant fit to the data?
+Which predictor variables contribute significantly to the model?}
+\textgreater{} Yes this linear regression model is a significant fit to
+the data (p \textless{} 2.2 x 10\^{}-16). Precipitation is a significant
+contributor to the model (p \textless{} 2 x 10\^{}-16)
+
+Remember that the global regression model we just created fits a single
+equation to the entire dataset. This means that it assumes the
+relationship between tree species richness, temperature, and
+precipitation is the same everywhere on the landscape. To see if this is
+a reasonable assumption, we can map the residuals of the model to
+examine any geographic trends. The spplot() function in the sp package
+is one way to plot spatial data with attributes.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{resids <-}\StringTok{ }\KeywordTok{residuals}\NormalTok{(trees.model)}
+\NormalTok{breaks <-}\StringTok{ }\KeywordTok{c}\NormalTok{(}\KeywordTok{min}\NormalTok{(resids), }\KeywordTok{min}\NormalTok{(resids)}\OperatorTok{/}\DecValTok{3}\NormalTok{, }\DecValTok{0}\NormalTok{, }\KeywordTok{max}\NormalTok{(resids)}\OperatorTok{/}\DecValTok{3}\NormalTok{, }\KeywordTok{max}\NormalTok{(resids))}
+\NormalTok{map.resids <-}\StringTok{ }\KeywordTok{SpatialPointsDataFrame}\NormalTok{(}\DataTypeTok{data=}\KeywordTok{data.frame}\NormalTok{(resids), }\DataTypeTok{coords=}\KeywordTok{cbind}\NormalTok{(lon,lat)) }
+\KeywordTok{spplot}\NormalTok{(map.resids, }\DataTypeTok{cuts=}\NormalTok{breaks, }\DataTypeTok{col.regions=}\KeywordTok{BlueRed}\NormalTok{(}\DecValTok{5}\NormalTok{), }\DataTypeTok{cex=}\DecValTok{1}\NormalTok{) }
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Lab9_files/figure-latex/unnamed-chunk-11-1.pdf}
+
+You can probably look at this plot and get a sense of whether the
+residuals are spatially clustered, but we should also perform a
+statistical test to confirm our observation. To do this, we can perform
+a Moran's I test on spatial point data using the Moran.I() function in
+the ape package. This test requires a spatial weights matrix, and for
+this we'll construct an inverse distance weights (IDW) matrix using the
+pointDistance() function in the raster package.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Construct IDW matrix}
+\NormalTok{geoMat<-}\KeywordTok{pointDistance}\NormalTok{(pts,}\DataTypeTok{longlat=}\OtherTok{TRUE}\NormalTok{) }\CommentTok{# pointDistance calculates pairwise geographic distances}
+\NormalTok{geoMat[}\KeywordTok{upper.tri}\NormalTok{(geoMat)] <-}\StringTok{ }\NormalTok{geoMat[}\KeywordTok{lower.tri}\NormalTok{(geoMat)] }\CommentTok{# store these distances in a symmetrical matrix}
+\NormalTok{spdata.IDW <-}\StringTok{ }\DecValTok{1}\OperatorTok{/}\NormalTok{geoMat }\CommentTok{# find the inverse distances}
+\KeywordTok{diag}\NormalTok{(spdata.IDW) <-}\StringTok{ }\DecValTok{0} \CommentTok{# fill in the diagonal elements}
+
+\CommentTok{# Perform a global test of Moran's I on the point observations}
+\KeywordTok{Moran.I}\NormalTok{(TreeSpecies, spdata.IDW)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## $observed
+## [1] 0.1892998
+## 
+## $expected
+## [1] -0.001968504
+## 
+## $sd
+## [1] 0.001970714
+## 
+## $p.value
+## [1] 0
+\end{verbatim}
+
+\hypertarget{lab-question-3-1.5-pts}{%
+\subsubsection{Lab Question 3 (1.5 pts)}\label{lab-question-3-1.5-pts}}
+
+\textbf{Do we have a significant signal of spatial autocorrelation in
+our residuals? In what part of the country does the model under-predict
+tree species richness? i.e.~Where does the model suggest there is lower
+tree species richness than the data points show? Remember that the
+residuals are the observed values minus the modeled (predicted) values.}
+\textgreater{} Yes, we have a significant signal of spatial
+aoutocorrelation because nearby points seem to covary with one another.
+The model over-predicts tree species richness in the pacific northwest
+and some regions of the south, and under-predicts tree species richness
+in most of the eastern US.
+
+When we have spatially autocorrelated residuals, we can still conduct a
+global spatial regression analysis, but we need to account for the
+spatial structure in our data. To do this, we can use fit statistics of
+models with different spatial covariance structures to determine the
+best spatial structure model to use given our data. Basically, this
+performs the same kind of linear regression analysis but adjusts the
+point data based on their geographic variation.
+
+For a baseline fit, we can run a model without specifying a covariance
+structure and obtain the likelihood of a ``null'' model that we hope to
+improve with information about the spatial structure of the data. We can
+use the lme() function (linear mixed effects) to model the data under
+different structures. The lme() function requires a grouping variable.
+Since we do not have a grouping variable in our data, we can create a
+dummy variable that has the same value for all 400 observations\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{dummy <-}\StringTok{ }\KeywordTok{rep}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{509}\NormalTok{)}
+\NormalTok{dframe <-}\StringTok{ }\KeywordTok{cbind}\NormalTok{(dframe, dummy) }\CommentTok{# Add it to the data frame}
+\end{Highlighting}
+\end{Shaded}
+
+Now we'll construct the null model, specifying the predictor variable
+effects (fixed effects) and the spatial covariance effects (random
+effects). You don' tneed to worry about this terminology.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{null.model <-}\StringTok{ }\KeywordTok{lme}\NormalTok{(}\DataTypeTok{fixed =}\NormalTok{ TreeSpecies }\OperatorTok{~}\StringTok{ }\NormalTok{temperature }\OperatorTok{+}\StringTok{ }\NormalTok{precipitation, }\DataTypeTok{data =}\NormalTok{ dframe, }\DataTypeTok{random =} \OperatorTok{~}\StringTok{ }\DecValTok{1} \OperatorTok{|}\StringTok{ }\NormalTok{dummy, }\DataTypeTok{method =} \StringTok{"ML"}\NormalTok{)}
+\KeywordTok{summary}\NormalTok{(null.model)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Linear mixed-effects model fit by maximum likelihood
+##  Data: dframe 
+##        AIC     BIC    logLik
+##   4274.407 4295.57 -2132.204
+## 
+## Random effects:
+##  Formula: ~1 | dummy
+##         (Intercept) Residual
+## StdDev: 0.000527497  15.9597
+## 
+## Fixed effects: TreeSpecies ~ temperature + precipitation 
+##                    Value Std.Error  DF  t-value p-value
+## (Intercept)   -11.312692 1.8506316 506 -6.11288  0.0000
+## temperature     0.023270 0.0141504 506  1.64451  0.1007
+## precipitation   0.061374 0.0018265 506 33.60119  0.0000
+##  Correlation: 
+##               (Intr) tmprtr
+## temperature   -0.604       
+## precipitation -0.491 -0.293
+## 
+## Standardized Within-Group Residuals:
+##        Min         Q1        Med         Q3        Max 
+## -5.9883642 -0.5082986 -0.0126754  0.5746499  2.3426741 
+## 
+## Number of Observations: 509
+## Number of Groups: 1
+\end{verbatim}
+
+Next, we can run the same model with spatial correlation structures. We
+can specify such a structure with the correlation option of lme(). We'll
+test two kinds of covariance structure, Gaussian (corGaus) and spherical
+(corSpher).
+
+We can use the update() function to apply each of these to the null
+model\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{gau.sp <-}\StringTok{ }\KeywordTok{update}\NormalTok{(null.model, }\DataTypeTok{correlation =} \KeywordTok{corGaus}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DataTypeTok{form =} \OperatorTok{~}\StringTok{ }\NormalTok{lat }\OperatorTok{+}\StringTok{ }\NormalTok{lon), }\DataTypeTok{method =} \StringTok{"ML"}\NormalTok{)}
+\KeywordTok{writeLines}\NormalTok{(}\StringTok{"}\CharTok{\textbackslash{}n}\StringTok{Results for Gaussian spatial correlation:}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Results for Gaussian spatial correlation:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{summary}\NormalTok{(gau.sp)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Linear mixed-effects model fit by maximum likelihood
+##  Data: dframe 
+##        AIC      BIC    logLik
+##   3942.332 3967.727 -1965.166
+## 
+## Random effects:
+##  Formula: ~1 | dummy
+##         (Intercept) Residual
+## StdDev:  0.00107749 15.42312
+## 
+## Correlation Structure: Gaussian spatial correlation
+##  Formula: ~lat + lon | dummy 
+##  Parameter estimate(s):
+##    range 
+## 1.497607 
+## Fixed effects: TreeSpecies ~ temperature + precipitation 
+##                  Value Std.Error  DF   t-value p-value
+## (Intercept)   4.523292 3.0839273 506  1.466731  0.1431
+## temperature   0.048755 0.0182489 506  2.671661  0.0078
+## precipitation 0.037056 0.0022658 506 16.354036  0.0000
+##  Correlation: 
+##               (Intr) tmprtr
+## temperature   -0.708       
+## precipitation -0.631  0.112
+## 
+## Standardized Within-Group Residuals:
+##        Min         Q1        Med         Q3        Max 
+## -3.8101843 -0.9293626 -0.3982992  0.9901882  3.1776089 
+## 
+## Number of Observations: 509
+## Number of Groups: 1
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sph.sp <-}\StringTok{ }\KeywordTok{update}\NormalTok{(null.model, }\DataTypeTok{correlation =} \KeywordTok{corSpher}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DataTypeTok{form =} \OperatorTok{~}\StringTok{ }\NormalTok{lat }\OperatorTok{+}\StringTok{ }\NormalTok{lon), }\DataTypeTok{method =} \StringTok{"ML"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in Initialize.corSpher(X[[i]], ...): initial value for 'range' less than
+## minimum distance. Setting it to 1.1 * min(distance)
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{writeLines}\NormalTok{(}\StringTok{"}\CharTok{\textbackslash{}n}\StringTok{Results for spherical spatial correlation:}\CharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Results for spherical spatial correlation:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{summary}\NormalTok{(sph.sp)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Linear mixed-effects model fit by maximum likelihood
+##  Data: dframe 
+##        AIC      BIC    logLik
+##   3654.824 3680.219 -1821.412
+## 
+## Random effects:
+##  Formula: ~1 | dummy
+##         (Intercept) Residual
+## StdDev: 0.006160497 24.22384
+## 
+## Correlation Structure: Spherical spatial correlation
+##  Formula: ~lat + lon | dummy 
+##  Parameter estimate(s):
+##   range 
+## 17.5457 
+## Fixed effects: TreeSpecies ~ temperature + precipitation 
+##                  Value Std.Error  DF   t-value p-value
+## (Intercept)   38.45730  8.805036 506  4.367648   0e+00
+## temperature   -0.07554  0.022161 506 -3.408572   7e-04
+## precipitation  0.01187  0.002610 506  4.546674   0e+00
+##  Correlation: 
+##               (Intr) tmprtr
+## temperature   -0.43        
+## precipitation -0.41   0.52 
+## 
+## Standardized Within-Group Residuals:
+##        Min         Q1        Med         Q3        Max 
+## -1.5666098 -1.0415174 -0.5084767  0.8821277  3.0861235 
+## 
+## Number of Observations: 509
+## Number of Groups: 1
+\end{verbatim}
+
+\hypertarget{lab-question-4-2-pts}{%
+\subsubsection{Lab Question 4 (2 pts)}\label{lab-question-4-2-pts}}
+
+\textbf{Examine the AIC scores - which model has the best model score?
+Which predictor variables contributed significantly to the null model,
+and which contributed significantly to the optimal model?}
+\textgreater{} The model using spherical spatial correlation has the
+best model score. Precipitation is a significant contributor to both the
+null and the optimal models.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{part-3-geographically-weighted-regression-for-tree-species-richness}{%
+\subsection{Part 3: Geographically Weighted Regression for Tree Species
+Richness}\label{part-3-geographically-weighted-regression-for-tree-species-richness}}
+
+Correcting for the spatial structure in our data allows us to fit a
+global spatial regression model, and we can use that to answer questions
+about the relationship between our modeled variables at the level of the
+whole study area. However, we may also be interested in seeing how the
+relationships between the variables in our dataset vary across space,
+and for this we can perform GWR.
+
+Our goal here is to fit local regressions to TreeSpecies as a function
+of temperature and precipitation. First, we will calibrate the bandwidth
+of the kernel that will be used to capture the points for each
+regression using the gwr.sel() function in the spgwr package (this may
+take a little while). The bandwidth describes how wide the kernel is - a
+wide bandwidth will capture more points but weight all of them less.
+
+gwr.sel(formula, data = list(), coords, adapt = FALSE, gweight =
+gwr.Gauss, \ldots) formula: regression model formula as in glm data:
+model data frame as in glm, or may be a SpatialPointsDataFrame or
+SpatialPolygonsDataFrame object as defined in package sp coords: matrix
+of coordinates of points representing the spatial positions of the
+observations adapt: either TRUE - find the proportion between 0 and 1 of
+observations to include in weighting scheme (k-nearest neighbours), or
+FALSE - find global bandwidth gweight: geographical weighting function,
+at present gwr.Gauss() default, or gwr.gauss(), the previous default or
+gwr.bisquare()
+
+Use gwr.sel() to set the kernel bandwidth for the GWR\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{gwr.formula <-}\StringTok{ }\KeywordTok{formula}\NormalTok{(TreeSpecies }\OperatorTok{~}\StringTok{ }\NormalTok{temperature }\OperatorTok{+}\StringTok{ }\NormalTok{precipitation)}
+\NormalTok{GWRbandwidth <-}\StringTok{ }\KeywordTok{gwr.sel}\NormalTok{(gwr.formula, }\DataTypeTok{data =}\NormalTok{ dframe, }\DataTypeTok{coords =} \KeywordTok{cbind}\NormalTok{(lon,lat), }\DataTypeTok{adapt =} \OtherTok{TRUE}\NormalTok{) }
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Adaptive q: 0.381966 CV score: 87395.6 
+## Adaptive q: 0.618034 CV score: 104593.2 
+## Adaptive q: 0.236068 CV score: 72016.86 
+## Adaptive q: 0.145898 CV score: 61252.98 
+## Adaptive q: 0.09016994 CV score: 52647.07 
+## Adaptive q: 0.05572809 CV score: 46891.17 
+## Adaptive q: 0.03444185 CV score: 42767.61 
+## Adaptive q: 0.02128624 CV score: 39338.33 
+## Adaptive q: 0.01315562 CV score: 36311.2 
+## Adaptive q: 0.008130619 CV score: 31483.95 
+## Adaptive q: 0.005024999 CV score: 31168.09 
+## Adaptive q: 0.006096446 CV score: 31107.07 
+## Adaptive q: 0.005925816 CV score: 31131.29 
+## Adaptive q: 0.006873431 CV score: 31069.89 
+## Adaptive q: 0.006725977 CV score: 31059.1 
+## Adaptive q: 0.006609378 CV score: 31058.1 
+## Adaptive q: 0.006568688 CV score: 31059.13 
+## Adaptive q: 0.006650069 CV score: 31057.76 
+## Adaptive q: 0.006650069 CV score: 31057.76
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GWRbandwidth}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.006650069
+\end{verbatim}
+
+Now that we have the bandwidth we can fit the GWR model using the gwr()
+function in the spgwr package.
+
+gwr(formula, data = list(), coords, bandwidth, adapt = NULL, longlat =
+NULL) formula: regression model formula as in glm data: model data frame
+as in glm, or may be a SpatialPointsDataFrame or
+SpatialPolygonsDataFrame object coords: matrix of coordinates of points
+representing the spatial positions of the observations adapt: either
+NULL (default) or a proportion between 0 and 1 of observations to
+include in weighting scheme (k-nearest neighbours) longlat: TRUE if
+point coordinates are longitude-latitude decimal degrees, in which case
+distances are measured in kilometers; if x is a SpatialPoints object,
+the value is se.fit if TRUE, return local coefficient standard errors
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{gwr.model =}\StringTok{ }\KeywordTok{gwr}\NormalTok{(gwr.formula, }\DataTypeTok{data =}\NormalTok{ dframe, }\DataTypeTok{coords =} \KeywordTok{cbind}\NormalTok{(lon,lat), }\DataTypeTok{adapt =}\NormalTok{ GWRbandwidth, }\DataTypeTok{longlat =} \OtherTok{TRUE}\NormalTok{) }
+\NormalTok{gwr.model}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Call:
+## gwr(formula = gwr.formula, data = dframe, coords = cbind(lon, 
+##     lat), adapt = GWRbandwidth, longlat = TRUE)
+## Kernel function: gwr.Gauss 
+## Adaptive quantile: 0.006650069 (about 3 of 509 data points)
+## Summary of GWR coefficient estimates at data points:
+##                      Min.     1st Qu.      Median     3rd Qu.        Max.
+## X.Intercept.  -108.523802  -10.701431    1.591611   20.505658  268.568163
+## temperature     -1.504615   -0.115640   -0.027521    0.085598    0.786045
+## precipitation   -0.050602    0.021436    0.035411    0.054136    0.241296
+##                 Global
+## X.Intercept.  -11.3127
+## temperature     0.0233
+## precipitation   0.0614
+\end{verbatim}
+
+Now we can look at the coefficients for each of the explanatory
+variables for each point in our dataset and add them to our original
+dataframe\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{results <-}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(gwr.model}\OperatorTok{$}\NormalTok{SDF)}
+\NormalTok{dframe}\OperatorTok{$}\NormalTok{coef.temp <-}\StringTok{ }\NormalTok{results}\OperatorTok{$}\NormalTok{temperature}
+\NormalTok{dframe}\OperatorTok{$}\NormalTok{coef.precip <-}\StringTok{ }\NormalTok{results}\OperatorTok{$}\NormalTok{precipitation}
+\NormalTok{dframe[}\DecValTok{1}\OperatorTok{:}\DecValTok{10}\NormalTok{,]}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##           lon      lat TreeSpecies ReptileSpecies temperature precipitation
+## 1   -80.30901 25.79108    59.46759       49.38501         241          1367
+## 2   -98.49686 26.95783    21.08283       49.53365         225           586
+## 3   -82.32988 26.95783    48.01480       48.23573         228          1265
+## 4   -80.98263 26.95783    11.22682       42.90447         228          1170
+## 5   -99.17049 28.12458    17.95195       47.86488         221           543
+## 6   -97.82324 28.12458    22.39311       57.09953         218           767
+## 7   -81.65625 28.12458    53.95510       53.43256         222          1222
+## 8  -103.88586 29.29133    16.33913       56.47482         206           277
+## 9   -99.84411 29.29133    27.36358       54.07272         202           616
+## 10  -98.49686 29.29133    38.66791       63.48143         210           664
+##    dummy   coef.temp coef.precip
+## 1      1 -0.73729924  0.13901641
+## 2      1 -0.05671018  0.04905340
+## 3      1 -0.88288581  0.15791181
+## 4      1 -0.93640225  0.24129606
+## 5      1 -0.11563975  0.03441031
+## 6      1 -0.32849931  0.02238299
+## 7      1 -1.03440923  0.16971151
+## 8      1  0.07675606  0.02670694
+## 9      1  0.11988173  0.04576031
+## 10     1  0.01050449  0.04358979
+\end{verbatim}
+
+Of course, it's easier to visualize how the coefficients vary if we plot
+them in space.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{gwr.temp <-}\StringTok{ }\KeywordTok{ggplot}\NormalTok{(dframe, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\NormalTok{lon,}\DataTypeTok{y=}\NormalTok{lat)) }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color=}\NormalTok{coef.temp), }\DataTypeTok{size =} \DecValTok{3}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_colour_gradient2}\NormalTok{(}\DataTypeTok{low =} \StringTok{"darkblue"}\NormalTok{, }\DataTypeTok{high =} \StringTok{"darkred"}\NormalTok{, }\DataTypeTok{mid=}\StringTok{"white"}\NormalTok{, }\DataTypeTok{na.value =} \StringTok{"grey50"}\NormalTok{, }\DataTypeTok{guide =} \StringTok{"colourbar"}\NormalTok{, }\KeywordTok{guide_legend}\NormalTok{(}\DataTypeTok{title=}\StringTok{"Coefs"}\NormalTok{)) }\OperatorTok{+}\StringTok{ }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"Temperature Coefficients"}\NormalTok{)}
+\NormalTok{gwr.precip <-}\StringTok{ }\KeywordTok{ggplot}\NormalTok{(dframe, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\NormalTok{lon,}\DataTypeTok{y=}\NormalTok{lat)) }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color=}\NormalTok{coef.precip), }\DataTypeTok{size =} \DecValTok{3}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_colour_gradient2}\NormalTok{(}\DataTypeTok{low =} \StringTok{"darkblue"}\NormalTok{, }\DataTypeTok{high =} \StringTok{"darkred"}\NormalTok{, }\DataTypeTok{mid=}\StringTok{"white"}\NormalTok{, }\DataTypeTok{na.value =} \StringTok{"grey50"}\NormalTok{, }\DataTypeTok{guide =} \StringTok{"colourbar"}\NormalTok{, }\KeywordTok{guide_legend}\NormalTok{(}\DataTypeTok{title=}\StringTok{"Coefs"}\NormalTok{))}\OperatorTok{+}\StringTok{ }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"Precipitation Coefficients"}\NormalTok{)}
+\NormalTok{dframe <-}\StringTok{ }\NormalTok{dframe[, }\DecValTok{-6}\NormalTok{]}
+\KeywordTok{grid.arrange}\NormalTok{(gwr.temp }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_path}\NormalTok{(}\DataTypeTok{data=}\NormalTok{states, }\KeywordTok{aes}\NormalTok{(long, lat, }\DataTypeTok{group=}\NormalTok{group), }\DataTypeTok{colour=}\StringTok{"grey"}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{coord_equal}\NormalTok{(),}
+\NormalTok{             gwr.precip }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_path}\NormalTok{(}\DataTypeTok{data=}\NormalTok{states, }\KeywordTok{aes}\NormalTok{(long, lat, }\DataTypeTok{group=}\NormalTok{group), }\DataTypeTok{colour=}\StringTok{"grey"}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{coord_equal}\NormalTok{(), }\DataTypeTok{nrow=}\DecValTok{2}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[width=1\linewidth]{Lab9_files/figure-latex/unnamed-chunk-19-1}
+
+\hypertarget{lab-question-5-1.5-pts}{%
+\subsubsection{Lab Question 5 (1.5 pts)}\label{lab-question-5-1.5-pts}}
+
+\textbf{What variable(s) contribute to tree species richness in
+California? Is/Are the effect(s) on tree species richness positive or
+negative?} \textgreater{} Precipitation contributes to tree species
+ricness in California. The effects on tree species richness is positive
+(i.e.~more precipitation = greater species richness)
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{part-3-geographically-weighted-regression-for-reptile-species-richness}{%
+\subsection{Part 3: Geographically Weighted Regression for Reptile
+Species
+Richness}\label{part-3-geographically-weighted-regression-for-reptile-species-richness}}
+
+Finally, let's create a GWR model for reptile species richness using
+temperature, precipitation, and tree species richness as predictor
+variables.
+
+\hypertarget{lab-question-6-1-pt}{%
+\subsubsection{Lab Question 6 (1 pt)}\label{lab-question-6-1-pt}}
+
+\textbf{In the code chunk below, fill in the formula that we need to use
+to construct the GWR model that has reptile species richness as the
+response variable and that has temperature, precipitation, and tree
+species richness as predictor variables.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{reptile.formula <-}\StringTok{ }\KeywordTok{formula}\NormalTok{(ReptileSpecies }\OperatorTok{~}\StringTok{ }\NormalTok{temperature }\OperatorTok{+}\StringTok{ }\NormalTok{precipitation }\OperatorTok{+}\StringTok{ }\NormalTok{TreeSpecies)}
+\end{Highlighting}
+\end{Shaded}
+
+And then run the GWR analysis\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# No need to change anything in this code chunk.}
+\NormalTok{reptile.bdw <-}\StringTok{ }\KeywordTok{gwr.sel}\NormalTok{(reptile.formula, }\DataTypeTok{data =}\NormalTok{ dframe, }\DataTypeTok{coords =} \KeywordTok{cbind}\NormalTok{(lon,lat), }\DataTypeTok{adapt =} \OtherTok{TRUE}\NormalTok{) }
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Adaptive q: 0.381966 CV score: 20013.65 
+## Adaptive q: 0.618034 CV score: 22100.45 
+## Adaptive q: 0.236068 CV score: 17515.53 
+## Adaptive q: 0.145898 CV score: 14793.98 
+## Adaptive q: 0.09016994 CV score: 12405.88 
+## Adaptive q: 0.05572809 CV score: 10349.37 
+## Adaptive q: 0.03444185 CV score: 8771.25 
+## Adaptive q: 0.02128624 CV score: 7565.302 
+## Adaptive q: 0.01315562 CV score: 6971.115 
+## Adaptive q: 0.008130619 CV score: 6344.428 
+## Adaptive q: 0.005024999 CV score: 6181.264 
+## Adaptive q: 0.003618604 CV score: 6154.327 
+## Adaptive q: 0.003027436 CV score: 6144.544 
+## Adaptive q: 0.001871058 CV score: 6217.744 
+## Adaptive q: 0.002585739 CV score: 6152.509 
+## Adaptive q: 0.003075899 CV score: 6144.32 
+## Adaptive q: 0.003135686 CV score: 6144.302 
+## Adaptive q: 0.003320144 CV score: 6146.098 
+## Adaptive q: 0.003176376 CV score: 6144.457 
+## Adaptive q: 0.003135686 CV score: 6144.302
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{reptile.model =}\StringTok{ }\KeywordTok{gwr}\NormalTok{(reptile.formula, }\DataTypeTok{data =}\NormalTok{ dframe, }\DataTypeTok{coords =} \KeywordTok{cbind}\NormalTok{(lon,lat), }\DataTypeTok{adapt =}\NormalTok{ reptile.bdw, }\DataTypeTok{longlat =} \OtherTok{TRUE}\NormalTok{) }
+\NormalTok{rept.results <-}\StringTok{ }\KeywordTok{as.data.frame}\NormalTok{(reptile.model}\OperatorTok{$}\NormalTok{SDF)}
+\NormalTok{dframe}\OperatorTok{$}\NormalTok{rept.temp <-}\StringTok{ }\NormalTok{rept.results}\OperatorTok{$}\NormalTok{temperature}
+\NormalTok{dframe}\OperatorTok{$}\NormalTok{rept.precip <-}\StringTok{ }\NormalTok{rept.results}\OperatorTok{$}\NormalTok{precipitation}
+\NormalTok{dframe}\OperatorTok{$}\NormalTok{rept.trees <-}\StringTok{ }\NormalTok{rept.results}\OperatorTok{$}\NormalTok{TreeSpecies}
+\end{Highlighting}
+\end{Shaded}
+
+And plot the results (temperature first)\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# No need to change anything in this code chunk.}
+\NormalTok{rept.temp <-}\StringTok{ }\KeywordTok{ggplot}\NormalTok{(dframe, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\NormalTok{lon,}\DataTypeTok{y=}\NormalTok{lat)) }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color=}\NormalTok{rept.temp), }\DataTypeTok{size =} \DecValTok{3}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_colour_gradient2}\NormalTok{(}\DataTypeTok{low =} \StringTok{"darkblue"}\NormalTok{, }\DataTypeTok{high =} \StringTok{"darkred"}\NormalTok{, }\DataTypeTok{mid=}\StringTok{"white"}\NormalTok{, }\DataTypeTok{na.value =} \StringTok{"grey50"}\NormalTok{, }\DataTypeTok{guide =} \StringTok{"colourbar"}\NormalTok{, }\KeywordTok{guide_legend}\NormalTok{(}\DataTypeTok{title=}\StringTok{"Coefs"}\NormalTok{)) }\OperatorTok{+}\StringTok{ }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"Temperature Coefficients"}\NormalTok{)}
+\NormalTok{rept.precip <-}\StringTok{ }\KeywordTok{ggplot}\NormalTok{(dframe, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\NormalTok{lon,}\DataTypeTok{y=}\NormalTok{lat)) }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color=}\NormalTok{rept.precip), }\DataTypeTok{size =} \DecValTok{3}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_colour_gradient2}\NormalTok{(}\DataTypeTok{low =} \StringTok{"darkblue"}\NormalTok{, }\DataTypeTok{high =} \StringTok{"darkred"}\NormalTok{, }\DataTypeTok{mid=}\StringTok{"white"}\NormalTok{, }\DataTypeTok{na.value =} \StringTok{"grey50"}\NormalTok{, }\DataTypeTok{guide =} \StringTok{"colourbar"}\NormalTok{, }\KeywordTok{guide_legend}\NormalTok{(}\DataTypeTok{title=}\StringTok{"Coefs"}\NormalTok{))}\OperatorTok{+}\StringTok{ }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"Precipitation Coefficients"}\NormalTok{)}
+\NormalTok{rept.trees <-}\StringTok{ }\KeywordTok{ggplot}\NormalTok{(dframe, }\KeywordTok{aes}\NormalTok{(}\DataTypeTok{x=}\NormalTok{lon,}\DataTypeTok{y=}\NormalTok{lat)) }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color=}\NormalTok{rept.trees), }\DataTypeTok{size =} \DecValTok{3}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{scale_colour_gradient2}\NormalTok{(}\DataTypeTok{low =} \StringTok{"darkblue"}\NormalTok{, }\DataTypeTok{high =} \StringTok{"darkred"}\NormalTok{, }\DataTypeTok{mid=}\StringTok{"white"}\NormalTok{, }\DataTypeTok{na.value =} \StringTok{"grey50"}\NormalTok{, }\DataTypeTok{guide =} \StringTok{"colourbar"}\NormalTok{, }\KeywordTok{guide_legend}\NormalTok{(}\DataTypeTok{title=}\StringTok{"Coefs"}\NormalTok{))}\OperatorTok{+}\StringTok{ }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"Tree Richness Coefficients"}\NormalTok{)}
+
+\NormalTok{rept.temp }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_path}\NormalTok{(}\DataTypeTok{data =}\NormalTok{ states, }\KeywordTok{aes}\NormalTok{(long, lat, }\DataTypeTok{group=}\NormalTok{group), }\DataTypeTok{colour=}\StringTok{"grey"}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{coord_equal}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Lab9_files/figure-latex/unnamed-chunk-22-1.pdf}
+
+Then precipitation\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{rept.precip }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_path}\NormalTok{(}\DataTypeTok{data =}\NormalTok{ states, }\KeywordTok{aes}\NormalTok{(long, lat, }\DataTypeTok{group=}\NormalTok{group), }\DataTypeTok{colour=}\StringTok{"grey"}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{coord_equal}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Lab9_files/figure-latex/unnamed-chunk-23-1.pdf}
+
+And tree species richness\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{rept.trees }\OperatorTok{+}\StringTok{ }\KeywordTok{geom_path}\NormalTok{(}\DataTypeTok{data =}\NormalTok{ states, }\KeywordTok{aes}\NormalTok{(long, lat, }\DataTypeTok{group=}\NormalTok{group), }\DataTypeTok{colour=}\StringTok{"grey"}\NormalTok{) }\OperatorTok{+}\StringTok{ }\KeywordTok{coord_equal}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Lab9_files/figure-latex/unnamed-chunk-24-1.pdf}
+
+\hypertarget{lab-question-7-2-pts}{%
+\subsubsection{Lab Question 7 (2 pts)}\label{lab-question-7-2-pts}}
+
+\textbf{Based on the points closest to the Bay Area, what effect do
+temperature, precipitation, and tree species richness have on reptile
+species richness around the Bay Area? Are the effects of these predictor
+variables positive or negative in the Bay Area? What about in Arizona -
+which variables have positive or negative effects on reptile species
+richness there?} \textgreater{} Around the Bay Area in California,
+temperature has a little to no effect on reptile species richness,
+precipitation has a negative effect on reptile species richness, and
+tree species richness has a positive effect on reptile species richness.
+In Arizona, temperature, precipitation, and tree species richness all
+have a positive effect on reptile species richness.
+
+\hypertarget{the-end}{%
+\subsubsection{The End}\label{the-end}}
+
+\end{document}

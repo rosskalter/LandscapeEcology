@@ -1,0 +1,313 @@
+---
+title: 'ESPM 137, Lab 9: Spatial Regression Analysis'
+output:
+  html_document: default
+  pdf_document: default
+---
+
+#! This lab is worth 10 pts and is due at 5pm on Friday, 10/30 !#
+
+## Overview and Goals
+
+In this lab, we will perform sophisticated statistical regression analyses on GIS data layers to quantify the variables that contribute to tree species richness and reptile species richness across the U.S.  We will perform both global (with and without spatial structure) and local spatial regression analyses and compare their results.  View the lab intro video to learn more about these analysis methods.
+
+Goals--
+1: To learn how to perform spatial regression analysis on GIS data.
+2: To learn how to interpret the output of spatial regression analysis.
+3: To compare regression methods that include spatial structure to those that do not.
+
+
+### Set up the R session ###
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Start with a clean slate...
+rm(list = ls()) 
+
+# Set working directory...
+wd_path <- "~/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab9"
+setwd(wd_path)
+knitr::opts_knit$set(root.dir = wd_path) # Make sure knitr knows your wd
+```
+
+Load required packages...
+```{r packages, include=FALSE}
+# Make a list of the packages we need, check whether they're installed, and install the ones we're missing...
+required.pkg <- c("raster", "spgwr", "ggplot2", "rgeos", "rgdal", "dismo", "RColorBrewer", "nlme", "ape", "gridExtra")
+pkgs.not.installed <- required.pkg[!sapply(required.pkg, function(p) require(p, character.only=T))]
+if (length(pkgs.not.installed) > 0) install.packages(pkgs.not.installed, dependencies=TRUE)
+
+# Load the required libraries...
+lapply(required.pkg, library, character.only = TRUE) 
+```
+
+-------------------------------------------------------
+
+## Part 1: Changing Raster Projection and Resolution ##
+
+Read in rasters of temperature, precipitation, tree species richness, and reptile species richness...
+```{r}
+temp <- raster("temp.tif")
+precip <- raster("precip.tif")
+Trees <- raster("Trees.tif")
+Reptiles <- raster("Reptiles.tif")
+```
+
+Now let's plot the four rasters...
+```{r}
+# First create some color schemes, for the sake of variety
+BlueRed <- colorRampPalette(c("darkblue", "white", "darkred")) 
+TanGreen <- colorRampPalette(c("tan", "darkgreen"))
+TanBlue <- colorRampPalette(c("wheat", "steelblue", "darkblue"))
+
+# Plot the four rasters
+par(mfrow=c(2,2))
+plot(temp, col=BlueRed(25), main="Annual Mean Temp.")
+plot(precip, col=TanBlue(25), main="Precipitation")
+plot(Trees, col=TanGreen(25), main="Tree Species Richness")
+plot(Reptiles, col=TanGreen(25), main="Reptile Species Richness")
+```
+
+Let's also read in a shapefile with state borders...
+```{r}
+states <- readOGR("states", layer = "states")
+states
+```
+
+The projection for the states shapefile (a SpatialPolygonsDataFrame object) is also different from the projection of the four rasters.  We can change the projection of a vector dataset using the spTransform() function in the rgdal package.
+```{r}
+states <- spTransform(states, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+states
+```
+
+Finally, let's crop the states shapefile to the extent of the temperature layer, and plot tree species richness with states overlaid...
+```{r}
+states <- crop(states, extent(temp))
+plot(Trees, col=TanGreen(25), main="Tree Species Richness")
+plot(states, add=TRUE)
+```
+
+------------------------------------------------
+
+## Part 2: Global Spatial Regression Analysis ##
+
+We could perform the spatial regression analysis on every single cell in the rasters, but that would take a long time, so we are going to draw a subsample of points to analyze instead.  We'll subsample about 2.5% of the points using the spsample() function.
+```{r}
+set.seed(21) # The seed allows us to choose the same set of random points each time
+pts <- spsample(states, n=600, type="hexagonal")
+
+# And plot the results...
+plot(Trees, col=TanGreen(25), main="Tree Species Richness")
+points(pts, pch='+')
+```
+
+### Lab Question 1 (1 pt)
+**In  the chunk below, create a raster stack with the Trees, Reptiles, temp, and precip rasters.  Then extract values for each point using the extract() function, and assign the extracted values to an object named vals.**
+
+extract(x, y)
+  x: a Raster object
+  y: a list of points
+  
+```{r}
+# This is basically a freebie; just double-check that this is the right code.
+rs <- stack(Trees, Reptiles, temp, precip)
+vals <- extract(rs, pts)
+
+# Check that it worked...
+vals[1:5, ]
+```
+
+Now we need to create a data frame from the extracted values...
+```{r}
+dframe <- data.frame(lon = pts@coords[,1], lat = pts@coords[,2], TreeSpecies = vals[,"Trees"], ReptileSpecies = vals[,"Reptiles"], temperature = vals[,"temp"], precipitation = vals[,"precip"])
+dframe[1:10,]
+```
+
+We can use the attach() function to allow us to call each variable in the data frame by name (as opposed to having to index its column out of the data frame)...
+```{r}
+attach(dframe) 
+TreeSpecies[1:10] # This will give us the extracted values for the TreeSpecies variable.
+```
+
+Now, let's create a simple linear regression model to examine the relationship between Tree species richness, temperature, and precipitation.  The lm() function fits a linear model to the variables in the equation we provide.  This equation takes the form:
+    y ~ x1 + x2 ... 
+    where y is the response variable, and x1, x2, etc., are the predictor variables.
+
+```{r}
+trees.model <- lm(TreeSpecies ~ temperature + precipitation)
+summary(trees.model)
+```
+From the output, you will see a table with the estimated regression coefficients (Estimate), the standard error for those estimates (Std. Error) and the p-value for each predictor variable, PR(>|t|).  Below that, you will see the R-squared value fo the model, which is an estimate of the model fit, and the p-value for the whole regression model.
+
+### Lab Question 2 (1 pt) ###
+**Is this linear regression model a significant fit to the data?  Which predictor variables contribute significantly to the model?**
+> Yes this linear regression model is a significant fit to the data (p < 2.2 x 10^-16). Precipitation is a significant contributor to the model (p < 2 x 10^-16)
+
+
+Remember that the global regression model we just created fits a single equation to the entire dataset.  This means that it assumes the relationship between tree species richness, temperature, and precipitation is the same everywhere on the landscape.  To see if this is a reasonable assumption, we can map the residuals of the model to examine any geographic trends.  The spplot() function in the sp package is one way to plot spatial data with attributes.
+```{r}
+resids <- residuals(trees.model)
+breaks <- c(min(resids), min(resids)/3, 0, max(resids)/3, max(resids))
+map.resids <- SpatialPointsDataFrame(data=data.frame(resids), coords=cbind(lon,lat)) 
+spplot(map.resids, cuts=breaks, col.regions=BlueRed(5), cex=1) 
+```
+
+You can probably look at this plot and get a sense of whether the residuals are spatially clustered, but we should also perform a statistical test to confirm our observation.  To do this, we can perform a Moran's I test on spatial point data using the Moran.I() function in the ape package.  This test requires a spatial weights matrix, and for this we'll construct an inverse distance weights (IDW) matrix using the pointDistance() function in the raster package.
+```{r}
+# Construct IDW matrix
+geoMat<-pointDistance(pts,longlat=TRUE) # pointDistance calculates pairwise geographic distances
+geoMat[upper.tri(geoMat)] <- geoMat[lower.tri(geoMat)] # store these distances in a symmetrical matrix
+spdata.IDW <- 1/geoMat # find the inverse distances
+diag(spdata.IDW) <- 0 # fill in the diagonal elements
+
+# Perform a global test of Moran's I on the point observations
+Moran.I(TreeSpecies, spdata.IDW)
+```
+
+### Lab Question 3 (1.5 pts) ###
+**Do we have a significant signal of spatial autocorrelation in our residuals?  In what part of the country does the model under-predict tree species richness?  i.e. Where does the model suggest there is lower tree species richness than the data points show?  Remember that the residuals are the observed values minus the modeled (predicted) values.**
+> Yes, we have a significant signal of spatial aoutocorrelation because nearby points seem to covary with one another. The model over-predicts tree species richness in the pacific northwest and some regions of the south, and under-predicts tree species richness in most of the eastern US.
+
+
+When we have spatially autocorrelated residuals, we can still conduct a global spatial regression analysis, but we need to account for the spatial structure in our data.  To do this, we can use fit statistics of models with different spatial covariance structures to determine the best spatial structure model to use given our data.  Basically, this performs the same kind of linear regression analysis but adjusts the point data based on their geographic variation.
+
+For a baseline fit, we can run a model without specifying a covariance structure and obtain the likelihood of a "null" model that we hope to improve with information about the spatial structure of the data.  We can use the lme() function (linear mixed effects) to model the data under different structures.  The lme() function requires a grouping variable.  Since we do not have a grouping variable in our data, we can create a dummy variable that has the same value for all 400 observations...
+```{r}
+dummy <- rep(1, 509)
+dframe <- cbind(dframe, dummy) # Add it to the data frame
+```
+
+Now we'll construct the null model, specifying the predictor variable effects (fixed effects) and the spatial covariance effects (random effects).  You don' tneed to worry about this terminology. 
+```{r}
+null.model <- lme(fixed = TreeSpecies ~ temperature + precipitation, data = dframe, random = ~ 1 | dummy, method = "ML")
+summary(null.model)
+```
+
+Next, we can run the same model with spatial correlation structures.  We can specify such a structure with the correlation option of lme().  We'll test two kinds of covariance structure, Gaussian (corGaus) and spherical (corSpher).  
+
+We can use the update() function to apply each of these to the null model...
+```{r}
+gau.sp <- update(null.model, correlation = corGaus(1, form = ~ lat + lon), method = "ML")
+writeLines("\nResults for Gaussian spatial correlation:\n")
+summary(gau.sp)
+
+sph.sp <- update(null.model, correlation = corSpher(1, form = ~ lat + lon), method = "ML")
+writeLines("\nResults for spherical spatial correlation:\n")
+summary(sph.sp)
+```
+
+### Lab Question 4 (2 pts)
+**Examine the AIC scores - which model has the best model score?  Which predictor variables contributed significantly to the null model, and which contributed significantly to the optimal model?**
+> The model using spherical spatial correlation has the best model score. Precipitation is a significant contributor to both the null and the optimal models.
+
+--------------------------------------------------------------------------
+
+## Part 3: Geographically Weighted Regression for Tree Species Richness ##
+
+Correcting for the spatial structure in our data allows us to fit a global spatial regression model, and we can use that to answer questions about the relationship between our modeled variables at the level of the whole study area.  However, we may also be interested in seeing how the relationships between the variables in our dataset vary across space, and for this we can perform GWR.  
+
+Our goal here is to fit local regressions to TreeSpecies as a function of temperature and precipitation.  First, we will calibrate the bandwidth of the kernel that will be used to capture the points for each regression using the gwr.sel() function in the spgwr package (this may take a little while).  The bandwidth describes how wide the kernel is - a wide bandwidth will capture more points but weight all of them less.
+
+gwr.sel(formula, data = list(), coords, adapt = FALSE, gweight = gwr.Gauss, ...)
+  formula: regression model formula as in glm
+  data: model data frame as in glm, or may be a SpatialPointsDataFrame or SpatialPolygonsDataFrame object as defined in package sp
+  coords: matrix of coordinates of points representing the spatial positions of the observations
+  adapt: either TRUE - find the proportion between 0 and 1 of observations to include in weighting scheme (k-nearest neighbours), 
+          or FALSE - find global bandwidth
+  gweight: geographical weighting function, at present gwr.Gauss() default, or gwr.gauss(), the previous default or gwr.bisquare()
+  
+Use gwr.sel() to set the kernel bandwidth for the GWR...
+```{r}
+gwr.formula <- formula(TreeSpecies ~ temperature + precipitation)
+GWRbandwidth <- gwr.sel(gwr.formula, data = dframe, coords = cbind(lon,lat), adapt = TRUE) 
+GWRbandwidth
+```
+
+Now that we have the bandwidth we can fit the GWR model using the gwr() function in the spgwr package.
+
+gwr(formula, data = list(), coords, bandwidth, adapt = NULL, longlat = NULL)
+  formula: regression model formula as in glm
+  data: model data frame as in glm, or may be a SpatialPointsDataFrame or SpatialPolygonsDataFrame object
+  coords: matrix of coordinates of points representing the spatial positions of the observations
+  adapt: either NULL (default) or a proportion between 0 and 1 of observations to include in weighting scheme (k-nearest neighbours)
+  longlat: TRUE if point coordinates are longitude-latitude decimal degrees, in which case distances are measured in kilometers; 
+            if x is a SpatialPoints object, the value is
+  se.fit if TRUE, return local coefficient standard errors
+
+```{r}
+gwr.model = gwr(gwr.formula, data = dframe, coords = cbind(lon,lat), adapt = GWRbandwidth, longlat = TRUE) 
+gwr.model
+```
+
+Now we can look at the coefficients for each of the explanatory variables for each point in our dataset and add them to our original dataframe...
+```{r}
+results <- as.data.frame(gwr.model$SDF)
+dframe$coef.temp <- results$temperature
+dframe$coef.precip <- results$precipitation
+dframe[1:10,]
+```
+
+Of course, it's easier to visualize how the coefficients vary if we plot them in space. 
+```{r, message=FALSE, out.width="100%"}
+gwr.temp <- ggplot(dframe, aes(x=lon,y=lat)) + geom_point(aes(color=coef.temp), size = 3) + scale_colour_gradient2(low = "darkblue", high = "darkred", mid="white", na.value = "grey50", guide = "colourbar", guide_legend(title="Coefs")) + ggtitle("Temperature Coefficients")
+gwr.precip <- ggplot(dframe, aes(x=lon,y=lat)) + geom_point(aes(color=coef.precip), size = 3) + scale_colour_gradient2(low = "darkblue", high = "darkred", mid="white", na.value = "grey50", guide = "colourbar", guide_legend(title="Coefs"))+ ggtitle("Precipitation Coefficients")
+dframe <- dframe[, -6]
+grid.arrange(gwr.temp + geom_path(data=states, aes(long, lat, group=group), colour="grey") + coord_equal(),
+             gwr.precip + geom_path(data=states, aes(long, lat, group=group), colour="grey") + coord_equal(), nrow=2)
+```
+
+### Lab Question 5 (1.5 pts) ###
+**What variable(s) contribute to tree species richness in California?  Is/Are the effect(s) on tree species richness positive or negative?**
+> Precipitation contributes to tree species ricness in California. The effects on tree species richness is positive (i.e. more precipitation = greater species richness)
+
+
+-----------------------------------------------------------------------------
+
+## Part 3: Geographically Weighted Regression for Reptile Species Richness ##
+
+Finally, let's create a GWR model for reptile species richness using temperature, precipitation, and tree species richness as predictor variables.
+
+### Lab Question 6 (1 pt) ###
+**In the code chunk below, fill in the formula that we need to use to construct the GWR model that has reptile species richness as the response variable and that has temperature, precipitation, and tree species richness as predictor variables.**
+```{r}
+reptile.formula <- formula(ReptileSpecies ~ temperature + precipitation + TreeSpecies)
+```
+
+And then run the GWR analysis...
+```{r}
+# No need to change anything in this code chunk.
+reptile.bdw <- gwr.sel(reptile.formula, data = dframe, coords = cbind(lon,lat), adapt = TRUE) 
+reptile.model = gwr(reptile.formula, data = dframe, coords = cbind(lon,lat), adapt = reptile.bdw, longlat = TRUE) 
+rept.results <- as.data.frame(reptile.model$SDF)
+dframe$rept.temp <- rept.results$temperature
+dframe$rept.precip <- rept.results$precipitation
+dframe$rept.trees <- rept.results$TreeSpecies
+```
+
+And plot the results (temperature first)...
+```{r, message=FALSE}
+# No need to change anything in this code chunk.
+rept.temp <- ggplot(dframe, aes(x=lon,y=lat)) + geom_point(aes(color=rept.temp), size = 3) + scale_colour_gradient2(low = "darkblue", high = "darkred", mid="white", na.value = "grey50", guide = "colourbar", guide_legend(title="Coefs")) + ggtitle("Temperature Coefficients")
+rept.precip <- ggplot(dframe, aes(x=lon,y=lat)) + geom_point(aes(color=rept.precip), size = 3) + scale_colour_gradient2(low = "darkblue", high = "darkred", mid="white", na.value = "grey50", guide = "colourbar", guide_legend(title="Coefs"))+ ggtitle("Precipitation Coefficients")
+rept.trees <- ggplot(dframe, aes(x=lon,y=lat)) + geom_point(aes(color=rept.trees), size = 3) + scale_colour_gradient2(low = "darkblue", high = "darkred", mid="white", na.value = "grey50", guide = "colourbar", guide_legend(title="Coefs"))+ ggtitle("Tree Richness Coefficients")
+
+rept.temp + geom_path(data = states, aes(long, lat, group=group), colour="grey") + coord_equal()
+```
+
+Then precipitation...
+```{r, message=FALSE}
+rept.precip + geom_path(data = states, aes(long, lat, group=group), colour="grey") + coord_equal()
+```
+
+And tree species richness...
+```{r, message=FALSE}
+rept.trees + geom_path(data = states, aes(long, lat, group=group), colour="grey") + coord_equal()
+```
+
+### Lab Question 7 (2 pts) ###
+**Based on the points closest to the Bay Area, what effect do temperature, precipitation, and tree species richness have on reptile species richness around the Bay Area?  Are the effects of these predictor variables positive or negative in the Bay Area?  What about in Arizona - which variables have positive or negative effects on reptile species richness there?**
+> Around the Bay Area in California, temperature has a little to no effect on reptile species richness, precipitation has a negative effect on reptile species richness, and tree species richness has a positive effect on reptile species richness.
+In Arizona, temperature, precipitation, and tree species richness all have a positive effect on reptile species richness.
+
+### The End ###
