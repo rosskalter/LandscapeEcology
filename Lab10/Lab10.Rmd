@@ -1,0 +1,474 @@
+---
+title: 'ESPM 137, Lab 10: Ecological Niche Modeling'
+output: html_document
+---
+
+#! This lab is worth 11 pts and is due at 5pm on Friday, 11/6 !#
+
+## Overview and Goals
+
+In this lab, we will use species occurrence data and environmental raster layers to construct ecological niche models (ENMs) for several species.
+Goals--
+1: To explore two methods for constructing ecological niche models (ENMs) and how to interpret them.
+2: To project models onto the landscape to evaluate the relationship between environmental space and geographic space.
+
+
+### Set up the R session ###
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Start with a clean slate...
+rm(list = ls()) 
+
+# Set working directory...
+wd_path <- "~/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab10"
+setwd(wd_path)
+knitr::opts_knit$set(root.dir = wd_path) # Make sure knitr knows your wd
+```
+
+Load required packages...
+```{r packages, include=FALSE}
+# Make a list of the packages we need, check whether they're installed, and install the ones we're missing...
+required.pkg <- c("raster", "RColorBrewer", "dismo", "rgdal")
+pkgs.not.installed <- required.pkg[!sapply(required.pkg, function(p) require(p, character.only=T))]
+if(length(pkgs.not.installed) > 0) install.packages(pkgs.not.installed, dependencies=TRUE)
+
+# Load the required libraries...
+lapply(required.pkg, library, character.only = TRUE) 
+source("convexHull.R")
+```
+
+---------------------------------------------------
+
+## Part 1: An ecological niche model for the California red-legged frog, Rana draytonii ##
+
+There are many methods for constructing ENMs.  The simplest is to use a generalized linear model (GLM), a form of multiple regression, which we've seen before.  So, we'll start this lab by constructing a GLM ENM for the California red-legged frog (CRLF), Rana draytonii, the state amphibian of California.
+
+First, we need to load the species occurrence points...
+```{r}
+CRLF.occ <- read.csv("Rana_draytonii.csv")
+head(CRLF.occ)
+```
+
+Let's also read in a shapefile for the county borders in California...
+```{r, include=FALSE}
+counties <- readOGR(dsn="County", layer="CaliforniaCounty")
+```
+
+And now let's plot the occurrence points...
+```{r}
+plot(counties, border="gray50")
+points(CRLF.occ, pch=21, bg="blue")
+```
+
+These are the presence points for the CRLF (i.e. the places where the frogs are found).  We can build a model with just these points, but it can also be valuable to know where they don't occur (i.e. absence points).  It's always difficult to demonstrate that something doesn't occur somewhere, so usually we don't have good absence information.  That means that we use 'pseudo-absence' points instead - they stand in for true absence points (a rough approximation).
+
+We can generate a set of pseudo-absence points by randomly choosing points in California using the spsample() function.
+
+spsample(x, n, type, ...)
+Arguments
+  x: Spatial object; spsample(x,...) is a generic method for the existing sample.Xxx functions
+  n: sample size
+  type: character; "random" for completely spatial random; "regular" for regular (systematically aligned) sampling;   "stratified" for stratified random (one single random location in each "cell"); "hexagonal" for sampling on a hexagonal lattice; "clustered" for clustered sampling.
+
+We want to generate the same number of pseudo-absence points as we have presence points, so we'll set n to the number of points in the CRLF dataset.
+```{r}
+set.seed(123)
+CRLF.abs <- spsample(counties, n = nrow(CRLF.occ), type = "random")
+```
+
+Then plot the presence and absence points...
+```{r}
+plot(counties, border = "gray50")
+points(CRLF.occ, pch = 21, bg = "blue")
+points(CRLF.abs, pch = 21, bg = "red")
+```
+
+The second set of data we need for constructing an ENM is the environmental data.  So, we also need to read in a set of bioclimate rasters from the WorldClim database...
+```{r, warning=FALSE}
+setwd("./present")
+wclim <- stack(list.files())
+plot(wclim)
+```
+In this case, we will only use six of the available data layers today.  
+bio1: Annual Mean Temperature
+bio2: Mean Diurnal Temperature Range
+bio7: Annual Temperature Range
+bio12: Annual Precipitation
+bio15: Precipitation Seasonality
+bio16: Precipitation of Wettest Quarter
+
+As you can see, these WorldClim rasters cover more than just California, so we'll use a mask to clip them to the state boundary.
+```{r}
+wclim <- mask(wclim, counties)
+plot(wclim)
+```
+
+And now we can extract the values for our presence and absence points from the rasters...
+```{r}
+# Extract the presence points
+env.pres <- extract(wclim, CRLF.occ)
+
+# Extract the absence points
+env.abs <- extract(wclim, CRLF.abs)
+```
+
+And then we need to make them into a dataframe for the next part of the analysis.  In this step, we'll also add a column that says whether the point is a presence (occ = 1) or absence (occ = 0) point.
+```{r}
+env.pres <- data.frame(occ = 1, env.pres)
+env.abs <- data.frame(occ = 0, env.abs)
+
+# Combine the two dataframes
+env <- rbind(env.pres, env.abs)
+env[c(1, 2, 3, 101, 102, 103),]
+```
+
+We should check whether any of the predictor variables (the WorldClim variables) are collinear (i.e. correlated).  We can do that using the pairs() function, which will plot all of the extracted values for each pair of variables in our dataset.
+```{r}
+pairs(env[,-1])
+```
+
+### Question 1 (0.5 pts) ###
+**Do any of the variables look like they're correlated?  Which ones?**
+> Mean Diurnal Temperature Range (bio2) and Annual Temperature Range (bio7) are correlated, and Annual Precipitation (bio12) and Precipitation of Wettest Quarter (bio16) are correlated.
+
+
+### Model Fitting ###
+
+The next step in constructing an ENM is model fitting.  For this step, we will describe the formula for the relationships among the variables in our dataset.  In R, the tilde (~) stands in for the equal sign (=) in a mathematical formula. Here, we'll set the occurrence (presence or absence) as the response variable and the bioclimate variables as the predictors. When we know what formula we want, we then use the glm() function to construct a generalized linear model.
+
+glm(formula, data, ...)
+Arguments
+  formula: an object of class "formula": a symbolic description of the model to be fitted. 
+  data: the data to be used to fit the model
+
+```{r}
+enm1 <- glm(occ ~ bio1 + bio2 + bio7 + bio12 + bio15 + bio16, data = env)
+summary(enm1)
+```
+
+### Question 2 (1 pt) ###
+**Based on the output of this model, which predictor variables are significant?**
+> Based on the output, Mean Diurnal Temperature Range (bio2) and Annual Temperature Range (bio7) are significant.
+
+
+We can also fit a different model using a subset of the predictor variables...
+```{r}
+enm2 <- glm(occ ~ bio1 + bio2 + bio7 + bio12 + bio15, data = env)
+summary(enm2)
+```
+
+### Question 3 (1 pt) ###
+**Which is the better model?  How do you know this is the better model, and what do you think makes it the better model? What is the relationship between bio12 and bio16?**
+>The second model is better because the AIC score is lower. Variables bio12 and bio16 very postively correlated (they almost dictate each other completely)
+
+
+### Question 4 (1 pt) ###
+**Look back at the pairs() output.  Is there another pair of variables that appear to be correlated?  Construct a new ENM using glm() that removes one of them, and examine the results of the model.** 
+```{r}
+enm3 <- glm(occ ~ bio1 + bio2 + bio7 + bio12, data = env)
+summary(enm3)
+  
+```
+
+**Which is the best model of the three?  Assign that model to the CRLF.enm objected below.**
+```{r}
+CRLF.enm <- enm3
+```
+
+
+### Model Evaluation ###
+
+Now that we have fit several models and selected the best one, we can move on to the next stage: model evaluation.  R makes this relatively easy using the evaluate() function.
+
+evaluate(p, a, model, x, ...)
+Arguments
+  p: presence points (x and y coordinates or SpatialPoints* object).
+  a: absence points (x and y coordinates or SpatialPoints* object). 
+  model: any fitted model
+  x: Optional. Predictor variables (object of class Raster*). If present, p and a are interpreted as (spatial) points
+
+```{r}
+eval <- evaluate(p = CRLF.occ, a = CRLF.abs, model = CRLF.enm, x = wclim)
+eval
+```
+
+Now that we have created a ModelEvaluation object, we can check whether the ENM predicts presence points (red) as having a higher value than absence points (blue). i.e. Presence points should occur in environmental conditions with higher suitability.  Let's first look at a density plot of the results...
+```{r}
+density(eval)
+```
+
+We can also view a box plot of the results...
+```{r}
+boxplot(eval, col = c("blue", "red"))
+```
+
+Finally, we can graph the receiver operating characterstic (ROC) curve for the results, a graph of how often the ENM models the presence of the organism correctly.  The red circles and lines represent the values from our model, and the gray line is the values expected under a null model.
+```{r}
+plot(eval, 'ROC')
+```
+
+### Question 5 (1 pt) ###
+**Examine the axis labels for the ROC plot.  Does the model we constructed appear to be a better than the null model?  Explain why. i.e. What specifically does the ROC curve show us (don't just write that it's above the line or reiterate the description from above)?**
+> The model we constructed appears to be better than the null model. It is showing us that the ENM models the presence of the organism with True Postives more often than not.
+
+
+It can also be helpful to visualize which part of environmental niche space the species occupies.  To do that, we can plot the values for two of the variables (here, we'll use annual mean temperature and annual precipitation) for the California red-legged frog occurrence points (in blue) compared to the random background points that represent the total range of available environmental conditions in California (in red).  It's important to note, however, that this is only two of the variables we have included in our model, and environmental niche space is actually much more complex than this simplification.  Nevertheless, it gives us a general sense of the thermal niche and precipitation niche for this species.
+```{r}
+plot(env.abs$bio1, env.abs$bio12, main = "Environmental Space", xlab = "Annual Mean Temperature (Bio1)", ylab = "Annual Precipitation (Bio12)", col = "red", pch = 20)
+points(env.pres$bio1, env.pres$bio12, col = "blue", pch = 20)
+plot(convexHull(cbind(env.abs$bio1[-9], env.abs$bio12[-9])), border = "red", add = TRUE)
+plot(convexHull(cbind(env.pres$bio1, env.pres$bio12)), border = "blue", add = TRUE)
+```
+
+
+### Model Prediction ###
+
+Finally, now that we have selected an optimal model and evaluated its performance, we can use it for prediction.  In the climate change lab, we used a model to predict temperature at other points in time, but here we'll use the model to predict whether CRLFs occur at other points in space (i.e. places where we don't have observations in our dataset).  We can do this using the predict() function.
+
+predict(object, x, ...)
+Arguments
+  object: a fitted model
+  x: a Raster* object or a data.frame
+  
+```{r}
+enm.pred <- predict(wclim, CRLF.enm)
+enm.pred
+```
+
+You can see above that when we apply the predict() function, it generates a new RasterLayer.  That raster contains the predictions for where the species occurs - the value of each cell is the probability of occurrence.  These values should range from 0 to 1, but the GLM will actually cause some values to exceed this range.  So, we need to replace these values with 0s (if they're < 0) and 1s (if they're > 1).
+```{r}
+enm.pred[enm.pred < 0] <- 0
+enm.pred[enm.pred > 1] <- 1
+```
+
+And then we can plot the results...
+```{r}
+# Plot the results
+sdmScheme <- colorRampPalette(c("blue", "green", "yellow", "orange", "red"), space = "rgb", interpolate = "linear")
+plot(enm.pred, col = sdmScheme(100), main = "Occurrence Probability for CRLF")
+points(CRLF.occ, col = "blue")
+points(CRLF.abs, col = "red")
+```
+
+We generally interpret the occurrence probabilities as "habitat suitability" values, because more suitable environmental conditions should mean the species is more likely to be found there.
+
+### Question 6 (1 pt) ###
+**Generally speaking, how are the occurrence probabilites spatially distributed?  Which regions have the most suitable habitat for California red-legged frogs?**
+>The occurance probabillities are distributed along the entire coast of California, with the highest probability along the central coast (most suitable habitat).
+
+
+## Part 2: An ecological niche model for the California grizzly, Ursus arctos californicus ##
+
+Let's also create a GLM ENM for another species, the California grizzly (go bears!), the official state animal of California, which unfortunately was hunted to extinction in 1922.
+
+Load occurrence points for the California grizzly...
+```{r}
+grizzly.occ <- read.csv("Ursus_arctos_californicus.csv")
+```
+
+And select pseudo-absence points...
+```{r}
+set.seed(234)
+grizzly.abs <- spsample(counties, n = nrow(grizzly.occ), type = "random")
+```
+
+And plot the points...
+```{r}
+plot(counties, border = "gray50")
+points(grizzly.occ, pch = 21, bg = "blue")
+points(grizzly.abs, pch = 21, bg = "red")
+```
+
+### Question 7 (1 pt) ###
+** Extract the values for the presence and absence points, make them into a dataframe, and check for correlations between the predictor variables.**
+```{r}
+# Extract the presence points
+bear.pres <- extract(wclim, grizzly.occ)
+
+# Extract the absence points
+bear.abs <- extract(wclim, grizzly.abs)
+
+bear.pres <- data.frame(occ = 1, bear.pres)
+bear.abs <- data.frame(occ = 0, bear.abs)
+
+# Combine the two dataframes
+bear <- rbind(bear.pres, bear.abs)
+bear[c(1, 2, 3, 70, 71, 72),]
+
+```
+
+### Question 8 (1 pt) ###
+**Now, fit some GLMs using three sets of the predictor variables and examine the results.**  
+```{r}
+pairs(bear[,-1])
+
+gnm1 <- glm(occ ~ bio1 + bio2 + bio7 + bio12 + bio15 + bio16, data = bear)
+
+gnm2 <- glm(occ ~ bio1 + bio2 + bio7 + bio12 + bio15, data = bear)
+
+gnm3 <- glm(occ ~ bio2 + bio7 + bio12 + bio15, data = bear)
+summary(gnm3)
+
+```
+
+**Which is the optimal model?  Assign it to the grizzly.enm object below, and then generate the raster of occurrence probabilies.**
+```{r}
+grizzly.enm <- gnm3
+grizzly.pred <- predict(wclim, grizzly.enm)
+```
+
+And then we can plot the results...
+```{r}
+grizzly.pred[grizzly.pred < 0] <- 0
+grizzly.pred[grizzly.pred > 1] <- 1
+
+# Plot the results
+sdmScheme <- colorRampPalette(c("blue", "green", "yellow", "orange", "red"), space = "rgb", interpolate = "linear")
+plot(grizzly.pred, col = sdmScheme(100), main = "Occurrence Probability for the California Grizzly", zlim = c(0, 1))
+points(grizzly.occ, col = "blue")
+points(grizzly.abs, col = "red")
+```
+
+And then evaluate the model and check the ROC curve...
+```{r}
+eval <- evaluate(p = grizzly.occ, a = grizzly.abs, model = grizzly.enm, x = wclim)
+plot(eval, 'ROC')
+```
+
+
+## Part 3: Constructing ENMs using the Bioclim method ##
+
+So, the GLM ENM we made for the California grizzly is ok, but there's not as big a difference between the presence and absence values as we'd like to see for a really good model.  The GLM method is too simple for many species, so we should use a more sophisticated method instead.  One that overcomes some of the limitations of the GLM approach is the Bioclim method.  The biggest difference is the GLM looks for linear relationships between the predictor variables and the occurrence points, whereas the Bioclim methods tries to full a bell-curve shape to those relationships.
+
+We can see what that looks like if we use the response() function to show us the relationships between the predictor variables and the probability of occurrence for the California red-legged frog GLM ENM.
+```{r}
+response(CRLF.enm)
+```
+
+Now, for comparison, let's fit a Bioclim ENM to the same CRLF data using the bioclim() function.  However, the Bioclim method only uses presence points, so we'll drop the pseudo-absence points from this analysis.
+
+bioclim(x, p, ...)
+Arugments
+  x: Raster* object or matrix of predictor variables
+  p: two column matrix or SpatialPoints* object of occurrence points
+```{r}
+CRLF.bc.enm <- bioclim(wclim, CRLF.occ)
+```
+
+And then we can examine the relationship of each variable...
+```{r}
+response(CRLF.bc.enm)
+```
+
+Now, fit a Bioclim ENM for the California grizzly...
+```{r}
+grizzly.bc.enm <- bioclim(wclim, grizzly.occ)
+
+grizzly.bc.pred <- predict(wclim, grizzly.bc.enm)
+plot(grizzly.bc.pred, col = sdmScheme(100), zlim=c(0,1),
+     main = "Habitat Suitability for U. arctos californicus")
+```
+
+And check the ROC plot...
+```{r}
+bc.eval <- evaluate(p = grizzly.occ, a = grizzly.abs, model = grizzly.bc.enm, x = wclim)
+plot(bc.eval, 'ROC')
+```
+
+So, now we clearly have a better model for the California grizzly.  That means we can also use our model to project into the future.  We'll first load a set of the same WorldClim variables but for the year 2070 instead of present day.
+```{r, warning=FALSE}
+setwd("./future")
+wclim2070 <- stack(list.files())
+wclim2070 <- mask(wclim2070, counties)
+```
+
+And then we can use the predict() function to project where suitable habitat for the California grizzly would be in 2070.
+```{r}
+grizzly.bc.2070 <- predict(wclim2070, grizzly.bc.enm)
+
+# Plot the ENMs for 2019 and 2070 side by side
+par(mfrow = c(1, 2))
+plot(grizzly.bc.pred, col = sdmScheme(100), main = "Occurrence Probability (2019)", zlim = c(0, 1))
+plot(grizzly.bc.2070, col = sdmScheme(100), main = "Occurrence Probability (2070)", zlim = c(0, 1))
+```
+
+### Question 9 (0.5 pts) ###
+**Generally speaking, what happens to the distribution of potential habitat/environmental conditions for the California grizzly under climate change in 2070?  Make sure you include the geographic context in your answer.**
+> Under climate change, the distribution of potential habitat/environmental conditions for the California grizzly decreases/becomes narrower in 2070. This is shown by the reduced spatial distribution of higher values of occurence probability and increased spatial distribution of lower values of occurence probability on the 2070 map comapred to 2019.
+
+
+## Part 4: Testing for environmental niche overlap ##
+
+Finally, let's plot the Bioclim models for the CRLF and California grizzly side by side.
+```{r}
+CRLF.bc.pred <- predict(wclim, CRLF.bc.enm)
+
+par(mfrow = c(1, 2))
+plot(CRLF.bc.pred, col = sdmScheme(100), main = "Occurrence Probability (CRLF)", zlim = c(0, 1))
+plot(grizzly.bc.pred, col = sdmScheme(100), main = "Occurrence Probability (Grizzly)", zlim = c(0, 1))
+```
+
+It looks like they might have a few things in common, but it's hard to say exactly just by looking at the two maps.  If we want to quantify how similar their environmental niches are, we can calculate a metric of niche overlap.  We can do that using the nicheOverlap() function.
+
+nicheOverlap(x, y, stat='I', ...) 
+Arguments
+  x: RasterLayer with non-negative values (predictions of the probability that a site is suitable for a species)
+  y: RasterLayer with non-negative values, as above
+  stat: character either 'I' or 'D'
+  
+```{r}
+D.obs <- nicheOverlap(CRLF.bc.pred, grizzly.bc.pred, stat="D")
+D.obs
+```
+
+Schoener's D statistic ranges from 0 to 1, with 0 being no overlap and 1 indicated perfect overlap.  So, this gives us a fairly low value of environmental niche overlap for the California grizzly and CRLF.  However, this may just be because they have different ranges, and occupying different parts of geographic space may mean that you occupy different parts of environmental space just by chance.  So, to test whether this moderately low level of niche divergence is less than expected by chance, we should construct a null distribution to compare it to.  
+
+First, we'll draw a convex hull around the points for each species to give us their ranges.
+```{r}
+CRLF.range <- convexHull(CRLF.occ)
+grizzly.range <- convexHull(grizzly.occ)
+plot(counties, border = "gray50")
+plot(CRLF.range, border = "green4", lwd = 2, add = TRUE)
+plot(grizzly.range, border = "brown", lwd = 2, add = TRUE)
+```
+
+### Question 10 (2 pts) ###
+**Now, write a loop that will do the following steps 50 times: (1) generate random sets of 50 points from each of the convex hulls, (2) construct a Bioclim ENM for each set of points, and (3) calculate Schoener's D for niche overlap for the two ENMs.  Assign the results to a vector named D.null so that we can plot them later.**
+```{r}
+set.seed(789)
+D.null <- c() # This vector will contain the comparisons of niche divergence between both geographic backgrounds
+
+for (i in 1:50) {
+  
+  CRLF.hull <- spsample(CRLF.range, n = 50, type = "random")
+  grizzly.hull <- spsample(grizzly.range, n = 50, type = "random")
+  
+  CRLF.enm <- bioclim(wclim, CRLF.hull)
+  grizzly.enm <- bioclim(wclim, grizzly.hull)
+  
+  CRLF.pred <- predict(wclim, CRLF.enm)
+  grizzly.pred <- predict(wclim, grizzly.enm)
+  
+  D.n <- nicheOverlap(CRLF.pred, grizzly.pred, stat="D")
+  
+  D.null <- c(D.null, D.n)
+
+  }
+
+
+```
+
+And plot the results as a histogram for the background values of Schoener's D and a blue line for the observed value...
+```{r}
+hist(D.null, main = "Niche Overlap vs Background", xlim = c(0, 1))
+abline(v = D.obs, col = "blue", lwd = 2)
+```
+
+### Question 11 (1 pt) ###
+**Based on this plot, does it look like the niche overlap between the California grizzly and California red-legged frog is less than or more than expected by chance?  Explain why.  (Think about the observed value relative to the null distribution.)**
+> Based on this plot, it looks like the niche overlap between the California grizzly and California red-legged frog is less than expected by chance because there are definitely more factors (biotic and abiotic) that are influencing the niche environment and survival of both species in specific areas of California.
+
+
+### The End ###
