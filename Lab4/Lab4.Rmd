@@ -1,0 +1,341 @@
+---
+title: 'ESPM 137, Lab 4: Mapping Climate Change'
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+#! This lab is worth 10 points and is due on September 25 at 5:00pm. !#
+
+## Overview and Goals
+
+In Labs 1 and 2, we learned about how R provides us with a bunch of tools for a range of mathematical functions.  Today, we're going to apply some of that math to rasters to investigate spatial and temporal heterogeneity in annual mean temperatures across California.
+
+Goals--
+1: Learn how to do some basic raster math.
+2: Learn how to work with raster stacks.
+3: Examine climate change trends in California at different spatial and temporal scales.
+
+### Set up the R session ###
+
+Load required packages...
+```{r packages, include=FALSE}
+# Start with a clean slate...
+rm(list = ls()) 
+
+# Make a list of the packages we need, check whether they're installed, and install the ones we're missing...
+required.pkg <- c("raster")
+pkgs.not.installed <- required.pkg[!sapply(required.pkg, function(p) require(p, character.only=T))]
+if (length(pkgs.not.installed) > 0) install.packages(pkgs.not.installed, dependencies=TRUE)
+
+# Load the required libraries...
+lapply(required.pkg, library, character.only = TRUE) 
+```
+
+Set markdown preferences...
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+folder_path <- "~/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab4" # Don't forget to set your working directory!
+setwd(folder_path)
+knitr::opts_knit$set(root.dir = folder_path) # Make sure knitr knows your wd
+```
+
+## Part 1: Creating a Raster Stack ##
+
+So far, we have only worked with single rasters or landscape layers in R.  However, there will be many times when we want to examine multiple rasters at the same time, for instance when we were comparing the spatial distributions of organisms and resources patches on a landscape in lab last week.  Or we might want to look at a wide range of abiotic and biotic variables to see how they're related.  Or we might want to see how one variable changes through time across a landscape. 
+
+For this kind of analysis, we want to create a raster stack.  A raster stack is a special kind of R object (technically called a RasterStack object) that contains a set of rasters with the same extents and resolutions.  That means that all of the rasters in the stack have the same spatial scale.  
+
+First, we want to get a list of the raster files in the TempRaster folder.  We can do this with the list.files() function, and we'll store the output as a vector of filenames in the rasterFiles object.
+```{r}
+rasterFiles <- list.files("./TempRasters") 
+rasterFiles[1:6] # Show us the first 6 items in the vector
+```
+
+Now that we know the file names of the rasters we want to read in, we can load them into R.  The stack() function allows us to read in a list of rasters and make them into a raster stack.
+
+  Usage
+     stack(x)
+  Arguments
+     x    A list or data frame to be stacked
+     
+We'll first add the full path to the filenames so that R knows where to find them (stored as the rasterPaths object).  Then, we'll use stack() to read them in and store them as the AMTs object.  AMT stands for Annual Mean Temperature.
+```{r echo=FALSE}
+rasterPaths <- paste(folder_path, "/TempRasters/", rasterFiles, sep="")
+AMTs <- stack(rasterPaths) # Make a raster stack from the list of files
+names(AMTs)[1:6] # Use the names() function to show us the names of the raster layers in the stack
+```
+
+You can see that these files all downloaded with the same standard prefix (tair_flx_ccsm3a2bcsd_), which tells us something about the variable and climate model used, but makes for needlessly long layer names here.  Each file also has 0131 after the year, which we don't need.  So, let's use the gsub() function to trim them down to just the year names.  The gsub() function looks for a character string and then replaces it with something else.  
+
+  Usage
+    gsub(pattern, replacement, x)
+  Arguments
+    pattern       A pattern to search for
+    replacement   A character string to replace the occurrences of the pattern.
+    x             A character string to search for the pattern
+
+Change the file names to years and then replace the layer names in the raster stack with those years.
+```{r}
+years <- gsub("tair_flx_ccsm3a2bcsd_", "", rasterFiles)
+years <- gsub("0131.tif", "", years)
+names(AMTs) <- years # Replace the existing names with the years
+names(AMTs) # Show us the names to make sure it worked
+```
+You'll notice that R won't allow numeric names for raster layers, so it adds an 'X' before the year.
+
+----------------------------------------------------------
+
+## Part 2: Calculating Temperature Change Between Years ##
+
+Now, let's take two years (1998 and 1999) and plot them side by side.  First, let's define a color scheme that we're going to use for plotting all of these temperature rasters.
+```{r}
+# First define a new color scheme
+heatScheme <- colorRampPalette(c("lightsteelblue", "goldenrod", "darkred"), bias=1, space="rgb", interpolate="linear")
+```
+
+Now plot the rasters using the plot() function.  
+
+  Usage
+    plot(x, col, main, ...)
+  Arguments
+    x       The raster (or object) to be plotted
+    col     The color scheme to use for plotting
+    main    The title (main label) for the plot
+    
+```{r}
+# Set the plotting parameters
+par(mfrow=c(1,2)) # 1 column, 2 rows
+
+# Then plot the two rasters (note that R won't allow numeric names for raster layers, so it adds an 'X' before the year)
+plot(AMTs$X1998, col=heatScheme(16), main="AMT 1998", zlim=c(-4.5, 25.5)) # We could also call this layer by AMTs[[39]]
+plot(AMTs$X1999, col=heatScheme(16), main="AMT 1999", zlim=c(-4.5, 25.5)) # We could also call this layer by AMTs[[40]]
+```
+
+They look pretty similar, right?  But, of course, we don't know what the temperature differences really are just by looking at the two rasters.  SO, let's create a new raster that is the difference in temperatures from 1998 to 1999.
+```{r}
+diff.1999_1998 <- AMTs$X1999 - AMTs$X1998
+diff.1999_1998 # Check that we created a new raster layer
+```
+
+Now plot the new raster.
+```{r}
+plot(diff.1999_1998, col=heatScheme(32), main="Temperature Change, 1999-1998")
+```
+
+We can also use the cellStats() function to calculate a variety of values from the raster.
+
+  Usage
+    cellStats(x, stat='mean', na.rm=TRUE)
+  Arguments
+    x       A raster object
+    stat    The function to be applied
+    na.rm   If TRUE, remove NA values.
+
+Calculate the mean value and range of values on the raster. 
+```{r}
+cellStats(diff.1999_1998, stat='mean')
+cellStats(diff.1999_1998, stat='range')
+```
+
+### Question 1 (1 pt) ###
+**Based on the stats we calculated above and the map of temperature change from 1998 to 1999, answer the following questions:**  
+**1a) What was the mean change in annual temperature across the study area?  What was the range?**
+> mean: -0.1998639 degrees, range: -0.9362698 to 0.1710749 degrees
+
+**1b) How would you describe, in very general terms, the spatial distribution of temperature change? (i.e. Where are there greater or lesser areas of change?)**
+> The distribution of temperature change is fairly consistent and negative across the landscape of California, with greater decrease in temperature change in southern regions.
+
+### Question 2 (1 pt) ### 
+**2a) What is the spatial scale of the rasters used to calculate temperature change above in Part 2?**
+> grain: 0.125 degrees x 0.125 degrees (x,y) , extent: -124.625, -113 , 31.875, 44 (long_min degrees, long_max degrees, lat_min, lat_max degrees)
+
+**2b) What is the temporal scale of the investigation performed to calculate temperature change above in Part 2?**
+> grain: 1 year, extent: 2 years (1998 to 1999)
+
+----------------------------------------------------------
+
+## Part 3: Calculating Temperature Change Between Decades ##
+
+Since there is likely a lot of temperature variation between years that might not always be related to long term temperature trends, we might want to smooth out some of the short term variation so that we can see the longer term trend.  One way we could do this is by calculating averages over several years (for instance, a decade) and then comparing those longer term averages.
+
+### Question 3 (1 pt) ###
+**So, let's make some decadal (10 year) averages of annual mean temperatures.  In the code chunk below, create two new rasters.  The first raster (avg1950s) should be the average AMTs for the 1950s (1950 to 1959), and the second raster (avg2000s) should be the average AMTs for the 2000s (2000 to 2009).**
+**Hint: You may want to call the rasters by their [[index]] numbers instead of their layer names.**
+
+```{r}
+avg1950s <- mean(AMTs[[1:10]])
+avg2000s <- mean(AMTs[[51:60]])
+```
+
+We can plot the rasters you created side by side to visually compare the temperatures of the 1950s to the temperatures of the 2000s.
+```{r}
+par(mfrow=c(1,2))
+plot(avg1950s, col=heatScheme(16), main="Mean Temperature, 1950s", zlim=c(-4.5, 25.5))
+plot(avg2000s, col=heatScheme(16), main="Mean Temperature, 2000s", zlim=c(-4.5, 25.5))
+```
+
+### Question 4 (1 pt) ###
+**Now, calculate the difference in average decadal temperatures between the 1950s and 2000s.  Assign the result to a new raster named diff.1950s_2000s.  Also calculate the mean and range of values on this new raster.**
+
+```{r}
+diff.1950s_2000s <- avg2000s - avg1950s
+cellStats(diff.1950s_2000s, stat='mean')
+cellStats(diff.1950s_2000s, stat='range')
+```
+> mean: [1.467238], range: [0.943926, 1.905793]
+
+Now plot the new raster.
+```{r}
+plot(diff.1950s_2000s, col=heatScheme(32), main="Temperature Change, 2000s-1950s")
+```
+
+### Question 5 (2 pts) ###
+**5a) Examine the plotted raster. How would you describe (in general terms) where there is greater or lesser temperature change?** 
+> From the plotted raster we can see that there was greater overall change in average temperature in inland regions and less overall change near coastlines. There was an increase in average temperature overall, but inland regions warmed more than coastlines.
+
+**5b) How does this compare to the 1999-1998 temperature changes?  i.e. What is different about the amplitude, direction, and spatial distribution of temperature changes?**
+> This plot shows a holistic The 1999-1998 temperature changes  showed no change in northern California regions and even a decrease (negative change) in average temperature across most of southern California. Looking at spatial distribution of temperature changes,  the 1999-1998 plot has a more sharp gradient while the decadal plot has a more smooth, broad gradient. This is logical because in one year there can be random temperature variation, but across multiple decades we can see gradual, long term temperate trends, hence smoother gradient overall.
+
+### Question 6 (2 pts) ##
+**6a) What is the temporal scale of the investigation performed to calculate temperature change above in Part 3?**
+> grain: 10 years, extent: 60 years (1950 - 2009)
+
+**6b) At what temporal scale does it make more sense to investigate something like climate change? Why (briefly)?**
+> Investigating something like climate change requires decadal or century temporal scale because that is the scale on which climate change behaves consistently. Measruing yearly changes would not be accurate because there are random fluctuations in temperature change that don't represent long term trends well.
+
+
+----------------------------------------------------------
+
+## Part 4: Changing the Scale of Rasters ##
+
+Next, let's take a closer look at the spatial scale of our rasters and what happens when we examine temperature change at different spatial resolutions.  We'll do this by creating a new raster of AMT with a different spatial scale.
+
+First, we want to assign the extent and projection of our current raster stack to new objects.  We'll use these to create a new raster with the same extent and projection, which is important if we want to compare different rasters.
+```{r, include=FALSE}
+my_ext <- extent(AMTs)
+my_proj <- proj4string(AMTs)
+
+my_ext # show extent
+my_proj # show projection 
+```
+
+Then we'll create a new, empty raster that has the extent, projection, and resolution (cell size) we want.  The grid cells in this raster won't be assigned any values; we're just using it to create a framework for the new, rescaled rasters we'll create next.  Here, we're setting the new raster resolution to 0.5.
+```{r}
+emptyRaster <- raster(ext=my_ext, crs=my_proj, resolution=1.25)
+emptyRaster
+```
+
+Now we can use the resample() function to create rasters with the new resolution (of our emptyRaster).  Let's do this for the avg1950s and avg2000s rasters you created. 
+
+  Usage
+    resample(x, y)
+  Arguments
+    x   Raster object to be resampled
+    y   Raster object with parameters that x should be resampled to
+
+### Question 7 (1 pt) ###
+**7a) We haven't shown you an example of the resample() function before, but if you look at the Usage and Arguments required you should be able to figure it out.  Here, resample the avg1950s and avg2000s rasters, and then calculate the difference between the rescaled rasters.**
+
+```{r}
+avg1950s.rescaled <- resample(avg1950s, emptyRaster)
+
+avg2000s.rescaled <- resample(avg2000s, emptyRaster)
+  
+diff.newRasters <- avg2000s.rescaled - avg1950s.rescaled
+  
+```
+
+Now, let's plot the result.
+```{r}
+plot(diff.newRasters, col=heatScheme(32), main="Temperature Change, 2000s-1950s (Rescaled)")
+```
+
+Let's also create a matrix of latitude/longitude points, extract the values for those points (they correspond to Berkeley, Yosemite, and San Diego), and calculate the mean and range for the new raster.
+```{r}
+# Create points and extract values
+pts <- matrix(c(-122.2645, -119.9012, -116.8421, 37.8727, 37.6415, 32.9542), nrow=3, ncol=2) # sample points
+extract(diff.newRasters, pts) # extract values for the new raster at the sample points
+
+# Calculate mean and range on the diff.newRasters layer. Write in your functions for doing this here.
+cellStats(diff.newRasters, stat='mean')
+cellStats(diff.newRasters, stat='range')
+
+```
+
+**7b) How does changing the raster resolution affect what we might infer about climate change across California from 1950 to 2009?  Consider the mean, range, and extracted values of the new difference raster when answering.**
+> Changing the raster resolution limits the amount of information we can infer about climate change across California from 1950 to 2009. In our new raster, with this larger resolution (cell size), calculated mean is smaller and the range is more limited/narrow than the original raster. Thus, any values we extract from the new raster will not be as accurate.
+
+----------------------------------------------------------
+
+## Part 5: Creating a Raster Stack of Temperature Changes Through Time ##
+
+Finally, we might be interested in not just the total difference in temperature between two time periods but also the changes between years over the whole time span of our study.  Since we've been working with raster stacks and raster math today, we know that we can make a raster stack composed of raster layers that contain the difference in AMT between each year and the first layer in our stack (1950).  This would give us a better sense for how temperature is changing through time.
+
+### Question 8 (1 pt) ###
+
+**In the code chunk below, create a new raster stack in which each raster is the difference in AMT between that year and the first year in the dataset (1950).  Your new stack should have as many raster layers as the original AMT stack.  Name your new raster stack TempChange.**
+**Hint: It will help to create an empty stack first, and you'll probably want to use a for(){} loop.  Also, you can use nlayers() to get the number of layers in a raster stack, and you can use the stack() function to add new rasters to an existing raster stack.**
+
+```{r}
+TempChange <- stack()
+TempChange <- stack(TempChange, AMTs$X1950)
+for(i in 2:nlayers(AMTs)) {
+  new.raster = AMTs[[i]] - AMTs$X1950
+  TempChange <- stack(TempChange, new.raster)
+}
+
+```
+
+And then we can extract the values for our three points from every layer in your new raster stack and plot the values for each year at each point.
+```{r}
+# Extract temperatures from the new stack
+temps <- extract(TempChange, pts)
+
+# Plot the values for each year for each point
+par(mfrow=c(3,1))
+plot(temps[1,], col="red", type="l", lwd=2, ylim=c(-1,3), ylab="Temp Diff", xaxt="n", xlab="Berkeley")
+axis(1,at=seq(0,60,by=10),labels=seq(1950,2010,by=10))
+abline(h=0, lty=2, col="gray40")
+plot(temps[2,], col="red", type="l", lwd=2, ylim=c(-1,3), ylab="Temp Diff", xaxt="n", xlab="Yosemite")
+axis(1,at=seq(0,60,by=10),labels=seq(1950,2010,by=10))
+abline(h=0, lty=2, col="gray40")
+plot(temps[3,], col="red", type="l", lwd=2, ylim=c(-1,3), ylab="Temp Diff", xaxt="n", xlab="San Diego")
+axis(1,at=seq(0,60,by=10),labels=seq(1950,2010,by=10))
+abline(h=0, lty=2, col="gray40")
+```
+
+After you have finished this step you have completed the full, graded portion of the lab.  If you would like an additional challenge, you can try the Part 6 section below.  That section is extra, and there are no bonus points, but if you would like to test your skills and learn a little more you might want to give it a try.  
+
+Don't forget to save your work!  Save it both as an Rmd file and use the Knit option to turn it into a document to upload on bcourses (html format is preferred, but any format is acceptable).
+
+----------------------------------------------------------
+
+## Extra (Part 6): Calculating Moving Averages of Mean Temperature ##
+
+Finally, we might also be interested in the trajectory (or general trend) of landscape change.  One way of examining this is to plot the difference in temperature (from some starting reference point) every year, as we did in Part 5.  However, as we saw earlier, temperature fluctuations year to year might not be part of a broader climate trend.  Another way to smooth out short term variation is to take a moving average through time.  This is similar to what we did to calculate the decadal averages, but instead of calculating the averages for two set time periods, we want to calculate a multi-year average for every year in our raster stack using a moving window approach.  You can think of this like taking a box and putting it down over a set of years, taking the average of those years, then sliding the whole box to one year later, taking the average of that new set of years, and repeating this process until you reach the end of the raster stack.
+
+There are methods for statistically determining the window size for this kind of analysis, but for now let's just pick a window size that is similar to our decadal averages.  So, we'll go with 9 years.  Each window will be centered on one of the years, so a window of 9 years will have the year we're focusing on plus 4 years in either direction.  e.g. The window for 2005 will include 2001-2009.
+
+### Question 9 (0 pts) ###
+
+**This might be a little challenging, but over the last three weeks we've shown you all the tools you'll need to do this.  In the code chunk below, create a new raster stack made up of the 9-year moving averages for the rasters in our AMTs stack.  Because we need to have 4 years in each direction (and our AMTs stack starts with 1950 and ends with 2009), the first raster in your new stack should be the average centered on 1954 (1950-1958), and the last will be centered on 2005.  Name the new stack MovingAvg.**
+Hint: It will help to create an empty stack first, and you'll probably want to use a for(){} loop.  Also, you can use nlayers() to get the number of layers in a raster stack, and you can use the stack() function to add new rasters to an existing raster stack.
+
+```{r}
+
+
+  
+```
+
+And then we can extract the values for all of the rasters in the new stack you created and plot the mean temperature trajectory for each location.  
+```{r}
+
+```
+
+----------------------------------------------------------
+
+### The End ###
