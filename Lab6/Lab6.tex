@@ -1,0 +1,693 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={ESPM 137, Lab 6: Landscape Metrics},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=1in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+
+\title{ESPM 137, Lab 6: Landscape Metrics}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+
+\#! This lab is worth 10 pts and is due at 5pm on Friday, 10/9 !\#
+
+\hypertarget{overview-and-goals}{%
+\subsection{Overview and Goals}\label{overview-and-goals}}
+
+In this lab, we will calculate landscape metrics for a forested
+landscape in Humboldt County. Like many parts of California, this
+landscape is a `working landscape' where there are several competing
+land uses. One of these is the longstanding timber harvest industry that
+has been thoroughly regulated in California, including Humboldt County.
+Timber harvesters must file a timber harvest plan with the county and
+records of timber extracted from different parcels. From this
+information, we can reconstruct data layers for the areas of timber
+harvest, which we'll work with today. Another emerging land use is
+cannabis production, which has accelerated in this region of the state
+since 2000. Cannabis grows have for a long time, at least until the
+legalization of recreational cannabis use in California, been a more
+clandestine land use activity. Nevertheless, we have been able to
+identify areas of cannabis production from satellite photography, from
+which we can construct GIS raster layers that we will also work with
+today. We'll use the SDMTools package in R to calculate a variety of
+landscape metrics to analyze patterns of forest cover change on this
+landscape. The SDMTools package is based on the FragStats program that
+was originally developed to examine changes in forested landscapes and
+has a long history in landscape ecology.
+
+Goals-- 1: Calculate landscape metrics for forested landscapes in
+Humboldt County, CA. 2: Examine the effects of land use conversion on
+the study landscape. 3: Quantify the effects of cannabis grows and
+timber harvest on the landscape forest structure in the study area.
+
+\hypertarget{set-up-the-r-session}{%
+\subsubsection{Set up the R session}\label{set-up-the-r-session}}
+
+Load required packages\ldots{}
+
+Set markdown preferences\ldots{}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{part-1-raster-data-and-proportions-of-habitat}{%
+\subsection{Part 1: Raster Data and Proportions of
+Habitat}\label{part-1-raster-data-and-proportions-of-habitat}}
+
+First, let's load the data by reading in rasters for forest cover,
+timber harvested, and cannabis grows.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{forest2000 <-}\StringTok{ }\KeywordTok{raster}\NormalTok{(}\StringTok{"forest021.tif"}\NormalTok{)}
+\NormalTok{forest2000}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## class      : RasterLayer 
+## dimensions : 1314, 2320, 3048480  (nrow, ncol, ncell)
+## resolution : 0.0005, 0.0005  (x, y)
+## extent     : -124.4476, -123.2876, 39.91097, 40.56797  (xmin, xmax, ymin, ymax)
+## crs        : +proj=longlat +datum=WGS84 +no_defs 
+## source     : /Users/rosskalter/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab6/forest021.tif 
+## names      : forest021 
+## values     : 0, 1  (min, max)
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{timber <-}\StringTok{ }\KeywordTok{raster}\NormalTok{(}\StringTok{"timber_harvest.tif"}\NormalTok{)}
+\NormalTok{timber}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## class      : RasterLayer 
+## dimensions : 1314, 2320, 3048480  (nrow, ncol, ncell)
+## resolution : 0.0005, 0.0005  (x, y)
+## extent     : -124.4476, -123.2876, 39.91097, 40.56797  (xmin, xmax, ymin, ymax)
+## crs        : +proj=longlat +datum=WGS84 +no_defs 
+## source     : /Users/rosskalter/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab6/timber_harvest.tif 
+## names      : timber_harvest 
+## values     : 0, 1  (min, max)
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{grows <-}\StringTok{ }\KeywordTok{raster}\NormalTok{(}\StringTok{"grows634.tif"}\NormalTok{)}
+\NormalTok{grows}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## class      : RasterLayer 
+## dimensions : 1314, 2320, 3048480  (nrow, ncol, ncell)
+## resolution : 0.0005, 0.0005  (x, y)
+## extent     : -124.4476, -123.2876, 39.91097, 40.56797  (xmin, xmax, ymin, ymax)
+## crs        : +proj=longlat +datum=WGS84 +no_defs 
+## source     : /Users/rosskalter/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab6/grows634.tif 
+## names      : grows634 
+## values     : 0, 1  (min, max)
+\end{verbatim}
+
+Let's plot the forest raster\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{plot}\NormalTok{(forest2000, }\DataTypeTok{main=}\StringTok{"Forest Cover"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Lab6_files/figure-latex/unnamed-chunk-2-1.pdf}
+
+And then the rasters of cannabis grows and timber harvest\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{par}\NormalTok{(}\DataTypeTok{mfrow=}\KeywordTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{,}\DecValTok{2}\NormalTok{))}
+\KeywordTok{plot}\NormalTok{(grows, }\DataTypeTok{main=}\StringTok{"Cannabis Grows"}\NormalTok{)}
+\KeywordTok{plot}\NormalTok{(timber, }\DataTypeTok{main=}\StringTok{"Timber Harvest"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{Lab6_files/figure-latex/unnamed-chunk-3-1.pdf}
+
+We can calculate the proportion of the habitat (p) covered by forest,
+using the prop() function.
+
+prop(x) x: a raster layer on which to calculate the proportion of
+habitat type 1
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{forest.p <-}\StringTok{ }\KeywordTok{prop}\NormalTok{(forest2000)}
+\NormalTok{forest.p}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.7515825
+\end{verbatim}
+
+\hypertarget{question-1-1-pt}{%
+\subsubsection{Question 1 (1 pt)}\label{question-1-1-pt}}
+
+\textbf{1a) In the box below, calculate the proportions of cannabis
+grows and timber harvest on the landscape.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{grows_p <-}\StringTok{ }\KeywordTok{prop}\NormalTok{(grows)}
+\NormalTok{timber_p <-}\StringTok{ }\KeywordTok{prop}\NormalTok{(timber)}
+
+\NormalTok{grows_p}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.002671212
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{timber_p}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.01872332
+\end{verbatim}
+
+\textbf{1b) Relatively speaking, how much of the landscape is covered by
+areas of timber harvest compared to cannabis grows?}
+\textgreater\textgreater There is about seven times more area covered by
+timber harvest (1.8\%) than cannabis grows (0.26\%)
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{part-2-calculating-landscape-metrics-for-forest-cover}{%
+\subsection{Part 2: Calculating Landscape Metrics for Forest
+Cover}\label{part-2-calculating-landscape-metrics-for-forest-cover}}
+
+Next, let's calculate some landscape metrics for our original landscape
+- that means for the forest021.tif raster (our forest object). That
+raster is a snapshot of forest cover for this study landscape in 2000.
+We can use the ClassStat() function to calculate a huge list of standard
+landscape metrics.
+
+ClassStat(map, bkgd = NA, latlon = FALSE) map: a matrix or raster layer
+with categorical values representing different habitat types bkgd: the
+background value for which statistics will not be calculated latlon:
+boolean value representing if the data is geographic
+
+The background value (the non-habitat) is coded as 0 on this raster, so
+we set bkgd=0. Because we have geographic data with real spatial
+locations, we set latlon=TRUE.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# Calculate landscape metrics}
+\NormalTok{forest2000.metrics <-}\StringTok{ }\KeywordTok{ClassStat}\NormalTok{(forest2000, }\DataTypeTok{bkgd=}\DecValTok{0}\NormalTok{, }\DataTypeTok{latlon=}\OtherTok{TRUE}\NormalTok{) }
+
+\CommentTok{# Display results}
+\KeywordTok{showMetrics}\NormalTok{(forest2000.metrics)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##                                    [,1]
+## class                            1.0000
+## n.patches                     1657.0000
+## total.area              2047345376.5326
+## prop.landscape                   0.7516
+## patch.density                    0.0000
+## total.edge                 8991831.5500
+## edge.density                     0.0033
+## landscape.shape.index           50.0940
+## largest.patch.index              0.6486
+## mean.patch.area            1235573.5525
+## sd.patch.area             43558804.7891
+## min.patch.area                2353.4891
+## max.patch.area          1766857948.9372
+## perimeter.area.frac.dim          0.0088
+## mean.perim.area.ratio            0.0547
+## sd.perim.area.ratio              0.0216
+## min.perim.area.ratio             0.0036
+## max.perim.area.ratio             0.0831
+## mean.shape.index                 1.2551
+## sd.shape.index                   1.1059
+## min.shape.index                  1.0000
+## max.shape.index                 38.5442
+## mean.frac.dim.index              1.0371
+## sd.frac.dim.index                0.0456
+## min.frac.dim.index               1.0001
+## max.frac.dim.index               1.3423
+## total.core.area         1618081797.0901
+## prop.landscape.core              0.5940
+## mean.patch.core.area        976512.8528
+## sd.patch.core.area        35443527.3469
+## min.patch.core.area              0.0000
+## max.patch.core.area     1438110759.9898
+## prop.like.adjacencies            0.8978
+## aggregation.index               94.7167
+## lanscape.division.index          0.5763
+## splitting.index                  2.3598
+## effective.mesh.size     1154366727.2121
+## patch.cohesion.index             9.9778
+\end{verbatim}
+
+We can retrieve any of the individual metrics by calling them with their
+names after the \$ sign. Let's look at some examples\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{forest2000.metrics}\OperatorTok{$}\NormalTok{total.edge }\CommentTok{# Show us the value calculated for the total edge metric}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 8991832
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{forest2000.metrics}\OperatorTok{$}\NormalTok{prop.landscape }\CommentTok{# Show us the total proportion of forest cover}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.7515764
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{forest2000.metrics}\OperatorTok{$}\NormalTok{prop.landscape.core }\CommentTok{# Show us the total proportion of forest core habitat}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.5939946
+\end{verbatim}
+
+\hypertarget{question-2-0.5-pts}{%
+\subsubsection{Question 2 (0.5 pts)}\label{question-2-0.5-pts}}
+
+\textbf{What is the proportion of forest edge habitat on our study
+landscape?} \textgreater\textgreater{} 0.1576
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{part-3-creating-new-raster-of-forest-cover}{%
+\subsection{Part 3: Creating New Raster of Forest
+Cover}\label{part-3-creating-new-raster-of-forest-cover}}
+
+Our goal is to analyze how the metrics of forest cover have changed due
+to deforestation from cannabis grows and timber harvest. The forest2000
+raster represents the forest cover in 2000, and the grows and timber
+rasters represent areas of cannabis grows and timber harvest observed in
+2013. On the forest raster, values of 1 represent forest cover, and
+values of 0 represent non-forest. On the grows and timber rasters,
+values of 1 represent area that is now a cannabis grow or that was
+harvested for timber, and values of 0 represent areas that weren't
+modified by these activities. You can also refer to the following table
+to see what the raster values represent.
+
+Raster 0 1\\
+forest non-forest forest cover grows non-grow cannabis grow timber not
+harvested timber harvested
+
+To measure how the landscape metrics have changed due to cannabis grows
+and timber harvest, we need to create new rasters that remove those
+areas from the raster of forest cover in 2000.
+
+\hypertarget{question-3-2-pts}{%
+\subsubsection{Question 3 (2 pts)}\label{question-3-2-pts}}
+
+\textbf{In the chunk below, create a new raster named grows.removed by
+removing areas of cannabis grows from the forest cover represented on
+the forest2000 raster. And create a new raster named timber.removed by
+removing areas of harvested timber from the forest cover represented on
+the forest2000 raster. We haven't shown you how to `remove' habitat from
+a raster, per se, but we think you can figure out how to do so. You
+don't need to use a fancy new function or anything we haven't shown you
+before.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{grows.removed <-}\StringTok{ }\NormalTok{forest2000 }\OperatorTok{-}\StringTok{ }\NormalTok{grows}
+\NormalTok{timber.removed <-}\StringTok{ }\NormalTok{forest2000 }\OperatorTok{-}\StringTok{ }\NormalTok{timber}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{question-4-1.5-pts}{%
+\subsubsection{Question 4 (1.5 pts)}\label{question-4-1.5-pts}}
+
+\textbf{4a) Check your results by calculating the proportion of forest
+cover on the new rasters in the chunk below.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{grows.removed.metrics <-}\StringTok{ }\KeywordTok{ClassStat}\NormalTok{(grows.removed, }\DataTypeTok{bkgd=}\DecValTok{0}\NormalTok{, }\DataTypeTok{latlon=}\OtherTok{TRUE}\NormalTok{) }
+\NormalTok{timber.removed.metrics <-}\StringTok{ }\KeywordTok{ClassStat}\NormalTok{(timber.removed, }\DataTypeTok{bkgd=}\DecValTok{0}\NormalTok{, }\DataTypeTok{latlon=}\OtherTok{TRUE}\NormalTok{) }
+
+\NormalTok{grows.removed.metrics}\OperatorTok{$}\NormalTok{prop.landscape}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.7489025
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{timber.removed.metrics}\OperatorTok{$}\NormalTok{prop.landscape}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.7327153
+\end{verbatim}
+
+\textbf{4b) Is this result what you expected? Why or why not?}
+\textgreater\textgreater{} These are the results we should expect
+because they equal to the total proportion of landscape from the
+forest2000 raster minus the repective proportion of cannabis grows on
+the landscape or timber harvest on the landscape that we calculated in
+part 1a.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{part-4-calculating-new-landscape-metrics-for-forest-cover}{%
+\subsection{Part 4: Calculating New Landscape Metrics for Forest
+Cover}\label{part-4-calculating-new-landscape-metrics-for-forest-cover}}
+
+Now that we have rasters for forest cover with cannabis grows removed
+and with timber harvest areas removed, we can calculate the landscape
+metrics for forest cover following these landscape modifications.
+
+\hypertarget{question-5-1.5-pt}{%
+\subsubsection{Question 5 (1.5 pt)}\label{question-5-1.5-pt}}
+
+\textbf{In the chunk below, calculate the landscape metrics using the
+ClassStat() function for the new rasters you created. Store the results
+as objects named grows.metrics and timber.metrics so that we can compare
+them later.}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{grows.metrics <-}\StringTok{ }\KeywordTok{ClassStat}\NormalTok{(grows.removed, }\DataTypeTok{bkgd=}\DecValTok{0}\NormalTok{, }\DataTypeTok{latlon=}\OtherTok{TRUE}\NormalTok{) }
+\NormalTok{timber.metrics <-}\StringTok{ }\KeywordTok{ClassStat}\NormalTok{(timber.removed, }\DataTypeTok{bkgd=}\DecValTok{0}\NormalTok{, }\DataTypeTok{latlon=}\OtherTok{TRUE}\NormalTok{) }
+\end{Highlighting}
+\end{Shaded}
+
+Now let's view the results\ldots{}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{metrics <-}\StringTok{ }\KeywordTok{rbind}\NormalTok{(}\DataTypeTok{forest2000=}\NormalTok{forest2000.metrics, }\DataTypeTok{cannabis=}\NormalTok{grows.metrics, }\DataTypeTok{timber=}\NormalTok{timber.metrics)}
+\KeywordTok{showMetrics}\NormalTok{(metrics)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##                              forest2000        cannabis          timber
+## class                            1.0000          1.0000          1.0000
+## n.patches                     1657.0000       1669.0000       1772.0000
+## total.area              2047345376.5326 2040061493.4404 1995966225.1020
+## prop.landscape                   0.7516          0.7489          0.7327
+## patch.density                    0.0000          0.0000          0.0000
+## total.edge                 8991831.5500    9339725.4700   10263366.0000
+## edge.density                     0.0033          0.0034          0.0038
+## landscape.shape.index           50.0940         52.1292         57.8983
+## largest.patch.index              0.6486          0.6460          0.6316
+## mean.patch.area            1235573.5525    1222325.6402    1126391.7749
+## sd.patch.area             43558804.7891   43228513.1998   41022107.4865
+## min.patch.area                2353.4891       2353.4891       2353.4891
+## max.patch.area          1766857948.9372 1759746997.9149 1720576259.2367
+## perimeter.area.frac.dim          0.0088          0.0092          0.0103
+## mean.perim.area.ratio            0.0547          0.0548          0.0559
+## sd.perim.area.ratio              0.0216          0.0216          0.0217
+## min.perim.area.ratio             0.0036          0.0038          0.0044
+## max.perim.area.ratio             0.0831          0.0831          0.0831
+## mean.shape.index                 1.2551          1.2570          1.2529
+## sd.shape.index                   1.1059          1.1455          1.2415
+## min.shape.index                  1.0000          1.0000          1.0000
+## max.shape.index                 38.5442         40.6315         45.8219
+## mean.frac.dim.index              1.0371          1.0372          1.0361
+## sd.frac.dim.index                0.0456          0.0457          0.0455
+## min.frac.dim.index               1.0001          1.0001          1.0001
+## max.frac.dim.index               1.3423          1.3473          1.3590
+## total.core.area         1618081797.0901 1589780093.0848 1507692200.3360
+## prop.landscape.core              0.5940          0.5836          0.5535
+## mean.patch.core.area        976512.8528     952534.5075     850842.0995
+## sd.patch.core.area        35443527.3469   34635344.0963   31898746.7874
+## min.patch.core.area              0.0000          0.0000          0.0000
+## max.patch.core.area     1438110759.9898 1410218483.2854 1338143596.4695
+## prop.like.adjacencies            0.8978          0.8937          0.8814
+## aggregation.index               94.7167         94.4899         93.7997
+## lanscape.division.index          0.5763          0.5797          0.5982
+## splitting.index                  2.3598          2.3788          2.4880
+## effective.mesh.size     1154366727.2121 1145159536.1653 1094873757.4447
+## patch.cohesion.index             9.9778          9.9777          9.9776
+\end{verbatim}
+
+We can also calculate the changes between the original forest2000
+metrics and the metrics calculated on your new rasters to quantify how
+much change in the forest metrics each of these land-uses has caused.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{diff.metrics <-}\StringTok{ }\KeywordTok{rbind}\NormalTok{(}\DataTypeTok{ChangeFromCannabis=}\NormalTok{grows.metrics}\OperatorTok{-}\NormalTok{forest2000.metrics, }\DataTypeTok{ChangeFromTimber=}\NormalTok{timber.metrics}\OperatorTok{-}\NormalTok{forest2000.metrics)}
+\KeywordTok{showMetrics}\NormalTok{(diff.metrics[,}\DecValTok{2}\OperatorTok{:}\DecValTok{38}\NormalTok{])}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##                         ChangeFromCannabis ChangeFromTimber
+## n.patches                          12.0000         115.0000
+## total.area                   -7283883.0922   -51379151.4306
+## prop.landscape                     -0.0027          -0.0189
+## patch.density                       0.0000           0.0000
+## total.edge                     347893.9200     1271534.4500
+## edge.density                        0.0001           0.0005
+## landscape.shape.index               2.0352           7.8043
+## largest.patch.index                -0.0026          -0.0170
+## mean.patch.area                -13247.9124     -109181.7776
+## sd.patch.area                 -330291.5893    -2536697.3026
+## min.patch.area                      0.0000           0.0000
+## max.patch.area               -7110951.0224   -46281689.7006
+## perimeter.area.frac.dim             0.0004           0.0015
+## mean.perim.area.ratio               0.0000           0.0011
+## sd.perim.area.ratio                 0.0000           0.0001
+## min.perim.area.ratio                0.0002           0.0007
+## max.perim.area.ratio                0.0000           0.0000
+## mean.shape.index                    0.0019          -0.0022
+## sd.shape.index                      0.0396           0.1356
+## min.shape.index                     0.0000           0.0000
+## max.shape.index                     2.0873           7.2777
+## mean.frac.dim.index                 0.0002          -0.0009
+## sd.frac.dim.index                   0.0001           0.0000
+## min.frac.dim.index                  0.0000           0.0000
+## max.frac.dim.index                  0.0051           0.0168
+## total.core.area             -28301704.0053  -110389596.7541
+## prop.landscape.core                -0.0104          -0.0405
+## mean.patch.core.area           -23978.3453     -125670.7533
+## sd.patch.core.area            -808183.2506    -3544780.5596
+## min.patch.core.area                 0.0000           0.0000
+## max.patch.core.area         -27892276.7044   -99967163.5203
+## prop.like.adjacencies              -0.0041          -0.0164
+## aggregation.index                  -0.2268          -0.9170
+## lanscape.division.index             0.0034           0.0219
+## splitting.index                     0.0190           0.1282
+## effective.mesh.size          -9207191.0467   -59492969.7674
+## patch.cohesion.index                0.0000          -0.0002
+\end{verbatim}
+
+\hypertarget{question-6-2-pts}{%
+\subsubsection{Question 6 (2 pts)}\label{question-6-2-pts}}
+
+\textbf{6a) Consider the values we estimated for the number of patches,
+mean patch area, and total edge on each of our rasters. Also look at the
+landscape division index - this index is a the probability than any two
+cells (drawn at random) are in different patches. In general terms,
+explain the effects that cannabis production and timber harvesting each
+have on the forest cover in this study landscape}
+\textgreater\textgreater Looking at the change in number of patches,
+mean patch area, and total edge on both the grows and timber metrics, we
+can conclude that cannabis production does not break up the forest cover
+patches as much and keeps fewer, large-area patches on the landscape
+(simple) while timber harvesting breaks up the forest cover into more
+numerous, smaller-area patches on the landscape (complex).
+
+\textbf{6b) There is one metric where cannabis and timber harvest cause
+changes in opposite directions: mean shape index. Recall from lecture
+what patch shape index means. Do cannabis grows result in more regular
+or more irregular forest patches? Does timber harvest result in more
+regular or irregular forest patches?} \textgreater\textgreater{}
+Cannabis grows result in more regular forest patches (less patches,
+larger average area) while timber harvest results in more irregular
+frorest patches (more patches, smaller average area)
+
+We can see that cannabis grows cause a loss of 28,301,704 square meters
+of patch core area, which is much less than the 110,389,597 square
+meters of core area lost to timber harvest. However, let's not forget
+that the total areas of cannabis grows and timber harvest are very
+different. So, let's see what happens if we scale the core area lost
+relative to the total size of cannabis grows and timber harvest areas.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{writeLines}\NormalTok{(}\StringTok{"Change in forest patch core area / total area of cannabis grows:"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Change in forest patch core area / total area of cannabis grows:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{diff.metrics}\OperatorTok{$}\NormalTok{total.core.area[}\DecValTok{1}\NormalTok{] }\OperatorTok{/}\StringTok{ }\KeywordTok{ClassStat}\NormalTok{(grows, }\DataTypeTok{bkgd=}\DecValTok{0}\NormalTok{, }\DataTypeTok{latlon=}\NormalTok{T)}\OperatorTok{$}\NormalTok{total.area}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] -3.885524
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{writeLines}\NormalTok{(}\StringTok{"Change in forest patch core area / total area of timber harvest:"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Change in forest patch core area / total area of timber harvest:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{diff.metrics}\OperatorTok{$}\NormalTok{total.core.area[}\DecValTok{2}\NormalTok{] }\OperatorTok{/}\StringTok{ }\KeywordTok{ClassStat}\NormalTok{(timber, }\DataTypeTok{bkg=}\DecValTok{0}\NormalTok{, }\DataTypeTok{latlon=}\NormalTok{T)}\OperatorTok{$}\NormalTok{total.area}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] -2.146458
+\end{verbatim}
+
+\hypertarget{question-7-1.5-pt}{%
+\subsubsection{Question 7 (1.5 pt)}\label{question-7-1.5-pt}}
+
+\textbf{What does this tell us about the placement of cannabis grows and
+areas of timber harvest in forest patches? i.e.~Which is more likely to
+be found in the center of a forest patch?} \textgreater\textgreater{}
+This shows us cannabis takes up more of the forest patch core area than
+timber harvest does (relative to total area). Therefore, we are most
+likely to find cannabis grow area at the center of a forest patch.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{the-end}{%
+\subsection{The End}\label{the-end}}
+
+That's all for this week. Don't forget to save your work. And when
+you're done, knit it and submit it.
+
+\end{document}

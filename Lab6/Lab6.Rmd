@@ -1,0 +1,237 @@
+---
+title: 'ESPM 137, Lab 6: Landscape Metrics'
+output:
+  html_document: default
+  pdf_document: default
+---
+
+#! This lab is worth 10 pts and is due at 5pm on Friday, 10/9 !#
+
+## Overview and Goals
+
+In this lab, we will calculate landscape metrics for a forested landscape in Humboldt County.  Like many parts of California, this landscape is a 'working landscape' where there are several competing land uses.  One of these is the longstanding timber harvest industry that has been thoroughly regulated in California, including Humboldt County.  Timber harvesters must file a timber harvest plan with the county and records of timber extracted from different parcels.  From this information, we can reconstruct data layers for the areas of timber harvest, which we'll work with today.  Another emerging land use is cannabis production, which has accelerated in this region of the state since 2000.  Cannabis grows have for a long time, at least until the legalization of recreational cannabis use in California, been a more clandestine land use activity.  Nevertheless, we have been able to identify areas of cannabis production from satellite photography, from which we can construct GIS raster layers that we will also work with today.  We'll use the SDMTools package in R to calculate a variety of landscape metrics to analyze patterns of forest cover change on this landscape.  The SDMTools package is based on the FragStats program that was originally developed to examine changes in forested landscapes and has a long history in landscape ecology.
+
+Goals--
+1: Calculate landscape metrics for forested landscapes in Humboldt County, CA.
+2: Examine the effects of land use conversion on the study landscape.
+3: Quantify the effects of cannabis grows and timber harvest on the landscape forest structure in the study area.
+
+### Set up the R session ###
+
+Load required packages...
+```{r packages, include=FALSE}
+# Start with a clean slate...
+rm(list = ls()) 
+
+# Make a list of the packages we need, check whether they're installed, and install the ones we're missing...
+required.pkg <- c("raster", "SDMTools")
+pkgs.not.installed <- required.pkg[!sapply(required.pkg, function(p) require(p, character.only=T))]
+if ("raster" %in% pkgs.not.installed) install.packages("raster", dependencies=TRUE)
+if ("SDMTools" %in% pkgs.not.installed){
+  packageurl <- "https://cran.r-project.org/src/contrib/Archive/SDMTools/SDMTools_1.1-20.tar.gz"
+  install.packages(packageurl, repos=NULL, type="source")
+} 
+
+# Load the required libraries...
+lapply(required.pkg, library, character.only = TRUE) 
+
+# Set up required functions...
+prop <- function(x){
+  p <- freq(x)[2,]/(freq(x)[1,]+freq(x)[2,])
+  return(as.numeric(p[2]))
+}
+
+showMetrics <- function(x){
+  t(round(x, 4))
+}
+
+options(scipen=999)
+```
+
+Set markdown preferences...
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+path <- "~/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab6"
+setwd(path)
+knitr::opts_knit$set(root.dir = path) # Make sure knitr knows your wd
+```
+
+----------------------------------------------------
+
+## Part 1: Raster Data and Proportions of Habitat ##
+
+First, let's load the data by reading in rasters for forest cover, timber harvested, and cannabis grows.
+```{r}
+forest2000 <- raster("forest021.tif")
+forest2000
+
+timber <- raster("timber_harvest.tif")
+timber
+
+grows <- raster("grows634.tif")
+grows
+```
+
+Let's plot the forest raster...
+```{r}
+plot(forest2000, main="Forest Cover")
+```
+
+And then the rasters of cannabis grows and timber harvest...
+```{r}
+par(mfrow=c(1,2))
+plot(grows, main="Cannabis Grows")
+plot(timber, main="Timber Harvest")
+```
+
+We can calculate the proportion of the habitat (p) covered by forest, using the prop() function.
+
+prop(x)
+  x: a raster layer on which to calculate the proportion of habitat type 1
+  
+```{r}
+forest.p <- prop(forest2000)
+forest.p
+```
+  
+### Question 1 (1 pt) ###
+**1a) In the box below, calculate the proportions of cannabis grows and timber harvest on the landscape.**
+```{r}
+grows_p <- prop(grows)
+timber_p <- prop(timber)
+
+grows_p
+timber_p
+
+```
+
+**1b) Relatively speaking, how much of the landscape is covered by areas of timber harvest compared to cannabis grows?**
+>>There is about seven times more area covered by timber harvest (1.8%) than cannabis grows (0.26%)
+
+
+------------------------------------------------------------
+
+## Part 2: Calculating Landscape Metrics for Forest Cover ##
+
+Next, let's calculate some landscape metrics for our original landscape - that means for the forest021.tif raster (our forest object).  That raster is a snapshot of forest cover for this study landscape in 2000.  We can use the ClassStat() function to calculate a huge list of standard landscape metrics.
+
+ClassStat(map, bkgd = NA, latlon = FALSE)
+  map: a matrix or raster layer with categorical values representing different habitat types
+  bkgd: the background value for which statistics will not be calculated
+  latlon: boolean value representing if the data is geographic
+
+The background value (the non-habitat) is coded as 0 on this raster, so we set bkgd=0.  Because we have geographic data with real spatial locations, we set latlon=TRUE.
+```{r}
+# Calculate landscape metrics
+forest2000.metrics <- ClassStat(forest2000, bkgd=0, latlon=TRUE) 
+
+# Display results
+showMetrics(forest2000.metrics)
+```
+
+We can retrieve any of the individual metrics by calling them with their names after the $ sign.  Let's look at some examples... 
+```{r}
+forest2000.metrics$total.edge # Show us the value calculated for the total edge metric
+forest2000.metrics$prop.landscape # Show us the total proportion of forest cover
+forest2000.metrics$prop.landscape.core # Show us the total proportion of forest core habitat
+```
+
+### Question 2 (0.5 pts) ###
+**What is the proportion of forest edge habitat on our study landscape?**
+>> 0.1576
+
+
+-------------------------------------------------
+
+## Part 3: Creating New Raster of Forest Cover ##
+
+Our goal is to analyze how the metrics of forest cover have changed due to deforestation from cannabis grows and timber harvest.  The forest2000 raster represents the forest cover in 2000, and the grows and timber rasters represent areas of cannabis grows and timber harvest observed in 2013. 
+On the forest raster, values of 1 represent forest cover, and values of 0 represent non-forest.  On the grows and timber rasters, values of 1 represent area that is now a cannabis grow or that was harvested for timber, and values of 0 represent areas that weren't modified by these activities.  You can also refer to the following table to see what the raster values represent.
+
+Raster        0               1  
+forest        non-forest      forest cover
+grows         non-grow        cannabis grow
+timber        not harvested   timber harvested
+
+To measure how the landscape metrics have changed due to cannabis grows and timber harvest, we need to create new rasters that remove those areas from the raster of forest cover in 2000.
+
+### Question 3 (2 pts) ###
+**In the chunk below, create a new raster named grows.removed by removing areas of cannabis grows from the forest cover represented on the forest2000 raster.  And create a new raster named timber.removed by removing areas of harvested timber from the forest cover represented on the forest2000 raster.  We haven't shown you how to 'remove' habitat from a raster, per se, but we think you can figure out how to do so.  You don't need to use a fancy new function or anything we haven't shown you before.**
+```{r}
+grows.removed <- forest2000 - grows
+timber.removed <- forest2000 - timber
+
+
+```
+
+### Question 4 (1.5 pts) ###
+**4a) Check your results by calculating the proportion of forest cover on the new rasters in the chunk below.**
+```{r}
+grows.removed.metrics <- ClassStat(grows.removed, bkgd=0, latlon=TRUE) 
+timber.removed.metrics <- ClassStat(timber.removed, bkgd=0, latlon=TRUE) 
+
+grows.removed.metrics$prop.landscape
+timber.removed.metrics$prop.landscape
+
+
+```
+
+**4b) Is this result what you expected?  Why or why not?**
+>> These are the results we should expect because they equal to the total proportion of landscape from the forest2000 raster minus the repective proportion of cannabis grows on the landscape or timber harvest on the landscape that we calculated in part 1a.
+
+
+----------------------------------------------------------------
+
+## Part 4: Calculating New Landscape Metrics for Forest Cover ##
+
+Now that we have rasters for forest cover with cannabis grows removed and with timber harvest areas removed, we can calculate the landscape metrics for forest cover following these landscape modifications.  
+
+### Question 5 (1.5 pt) ###
+**In the chunk below, calculate the landscape metrics using the ClassStat() function for the new rasters you created.  Store the results as objects named grows.metrics and timber.metrics so that we can compare them later.**
+```{r}
+grows.metrics <- ClassStat(grows.removed, bkgd=0, latlon=TRUE) 
+timber.metrics <- ClassStat(timber.removed, bkgd=0, latlon=TRUE) 
+
+
+```
+
+Now let's view the results...
+```{r}
+metrics <- rbind(forest2000=forest2000.metrics, cannabis=grows.metrics, timber=timber.metrics)
+showMetrics(metrics)
+```
+
+We can also calculate the changes between the original forest2000 metrics and the metrics calculated on your new rasters to quantify how much change in the forest metrics each of these land-uses has caused.  
+```{r}
+diff.metrics <- rbind(ChangeFromCannabis=grows.metrics-forest2000.metrics, ChangeFromTimber=timber.metrics-forest2000.metrics)
+showMetrics(diff.metrics[,2:38])
+```
+
+### Question 6 (2 pts) ###
+**6a) Consider the values we estimated for the number of patches, mean patch area, and total edge on each of our rasters.  Also look at the landscape division index - this index is a the probability than any two cells (drawn at random) are in different patches.  In general terms, explain the effects that cannabis production and timber harvesting each have on the forest cover in this study landscape**
+>>Looking at the change in number of patches, mean patch area, and total edge on both the grows and timber metrics, we can conclude that cannabis production does not break up the forest cover patches as much and keeps fewer, large-area patches on the landscape (simple) while timber harvesting breaks up the forest cover into more numerous, smaller-area patches on the landscape (complex).
+
+
+**6b) There is one metric where cannabis and timber harvest cause changes in opposite directions: mean shape index.  Recall from lecture what patch shape index means.  Do cannabis grows result in more regular or more irregular forest patches?  Does timber harvest result in more regular or irregular forest patches?**
+>> Cannabis grows result in more regular forest patches (less patches, larger average area) while timber harvest results in more irregular frorest patches (more patches, smaller average area)
+
+
+We can see that cannabis grows cause a loss of 28,301,704 square meters of patch core area, which is much less than the 110,389,597 square meters of core area lost to timber harvest.  However, let's not forget that the total areas of cannabis grows and timber harvest are very different.  So, let's see what happens if we scale the core area lost relative to the total size of cannabis grows and timber harvest areas.
+```{r}
+writeLines("Change in forest patch core area / total area of cannabis grows:")
+diff.metrics$total.core.area[1] / ClassStat(grows, bkgd=0, latlon=T)$total.area
+writeLines("Change in forest patch core area / total area of timber harvest:")
+diff.metrics$total.core.area[2] / ClassStat(timber, bkg=0, latlon=T)$total.area
+```
+
+### Question 7 (1.5 pt) ###
+**What does this tell us about the placement of cannabis grows and areas of timber harvest in forest patches?  i.e. Which is more likely to be found in the center of a forest patch?**
+>> This shows us cannabis takes up more of the forest patch core area than timber harvest does (relative to total area). Therefore, we are more likely to find cannabis grow area than timber harvest at the center of a forest patch.
+
+
+---------------------
+
+## The End ##
+
+That's all for this week.  Don't forget to save your work.  And when you're done, knit it and submit it. 
