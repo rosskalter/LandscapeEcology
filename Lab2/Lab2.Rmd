@@ -1,0 +1,259 @@
+---
+title: 'ESPM 137, Lab 1: Introduction to R, Part II'
+date: "September 3, 2020"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+#! This lab is worth 5 points and is due on September 11 at 5:00pm. !#
+
+## Overview
+
+Last week, we explored different object types in R and how to write loops and conditional statements.  This week, we'll learn a few more generally useful conditionals and then how to work with some simple GIS data (rasters and shapefiles).
+
+
+### Set up the R session ###
+
+Set the options for Rmarkdown.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Set the working directory
+folder_path <- "~/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab2" # Don't forget to give directions to your working folder!
+knitr::opts_knit$set(root.dir = folder_path)
+```
+
+
+### All, Any, Which...
+
+Sometimes we want to find out if a certain value exists in a vector (or other object).  We have a few options for value matching, including all(), any(), and which().  Let's see how they work.  First, let's create a vector of numbers to test against.
+```{r}
+big.vec <- seq(from = 1, to = 45, by = 3)
+```
+
+Now let's create a shorter vector and use the all() function to test whether all elements of the small vector can be found in the big vector.  To see whether a value is contained in another set, we use the %in% operator.
+```{r}
+small.vec <- c(1, 44, 7, 9, 16, 7)
+all(small.vec %in% big.vec) # Are all the values in small.vec found in big.vec
+```
+R evaluates this statement (are all the values in small.vec found in big.vec?) and finds that they are not, so it reports the statement as FALSE.
+
+So, not all of the elements in small.vec are contained in big.vec, but are any of them?  We can test this using the any() function.
+```{r}
+any(small.vec %in% big.vec)
+```
+In this case, the condition is TRUE.
+
+So, some of the numbers in small.vec are found in big.vec, but what if we want to know which ones?  For this, we can use the which() function.
+```{r}
+which(small.vec %in% big.vec)
+```
+Note than which tells us which elements of the vector fulfill the condition.  i.e. These are indices for the elements in the vector, not the numbers themselves.
+
+We can also test the values of the elements in vectors using comparison operators: == (equal to), != (not equal to), < (less than), <= (less than or equal to), > (greater than), and >= (greater than or equal to).
+
+### Question 1 (1 pt) ###
+In the box below, identify (1) which elements in small.vec are equal to 7, and then (2) whether all elements are less than 44.
+```{r}
+which(small.vec == 7)
+all(small.vec < 44)
+
+```
+
+
+### Random Numbers
+
+Generating random numbers can be really useful (for instance, when we want to run simulations), and R gives us convenient functions for generating random numbers from several probability distributions.  Two that we will use in this class are the normal distribution and the uniform distribution.
+
+To generate random numbers from a normal distribution, we can use the rnorm() function.
+
+rnorm(n, mean = 0, sd = 1)
+  n: number of observations to generate
+  mean: mean value of the distribution
+  sd: standard deviation of the distribution
+  
+Let's generate a vector of 10 random numbers with a mean of 1 and standard deviation of 1.
+```{r}
+rnorm(10, mean = 1, sd = 1)
+```
+
+We can also, of course, assign the output of the random number functions to an object.  Here, we'll create a vector of 1000 random numbers drawn from a normal distribution with a mean of 0 and standard deviation of 1.
+```{r}
+nums <- rnorm(1000, mean = 0, sd = 1)
+```
+
+We can use the hist() function to plot a histogram for the values in the vector.  This can be useful for visualizing the distribution of values in an object.
+```{r}
+hist(nums)
+```
+
+To generate random numbers from a uniform distribution, we can use the runif() function.
+
+runif(n, min = 0, max = 1)
+  n: number of observations to generate
+  min: lower limit of the distribution
+  max: upper limit of the distribution
+  
+### Question 2 (1 pt) ###
+In the box below, generate a vector of 100 random numbers drawn from a uniform distribution ranging from 0 to 50.  Then, to make sure you have declared the arguments correctly, test whether all of the numbers in the vector are less than or equal to 50.
+```{r}
+uninums <- runif(n = 100, min = 0, max = 50)
+all(uninums <= 50)
+```
+
+
+## Using R for GIS
+Now that we have a handle on basic R objects and functions, let's start looking into how we can use R for GIS.  Today, we'll explore shapefile and raster data and perform some basic statistics.
+
+First, we need to load the required packages.  This code chunk checks for the R packages we need and installs them if they are missing.  You can run it without making any changes.
+```{r packages, include=FALSE}
+# Make a list of the packages we need, check whether they're installed, and install the ones we're missing...
+required.pkg <- c("raster", "rgdal", "knitr")
+pkgs.not.installed <- required.pkg[!sapply(required.pkg, function(p) require(p, character.only=T))]
+if (length(pkgs.not.installed) > 0) install.packages(pkgs.not.installed, dependencies=TRUE)
+
+# Load the required libraries...
+lapply(required.pkg, library, character.only = TRUE) 
+```
+
+
+### Shapefiles
+The rgdal package includes a function, readOGR(), that allows us to read in shapefiles.  Here, we'll read in a shapefile that contains the boundaries for the counties in California.
+```{r warning=FALSE}
+shp <- readOGR(dsn = "County", layer = "CaliforniaCounty", stringsAsFactors = FALSE)
+shp
+```
+As you can see, looking at the information for the shp object we created tells us a lot about it.  It tells us that it's a Spatial Polygons Data Frame object (a special class of GIS objects in R), it tells us how many polygons (features) are in the shapefile, and it gives us its extent and projection (coordinate reference system).
+
+We can also get the extent and projection using the extent() and projection() functions.
+```{r}
+extent(shp)
+projection(shp)
+```
+
+And we can get the number of features/polygons using the nrow() function.  In this case, each polygon corresponds to a county.
+```{r}
+nrow(shp)
+```
+
+Some complex object classes in R have data structured into different slots.  We can access these slots use the @ character.
+```{r}
+head(shp@data) # show us what's in the data slot
+```
+
+Above, you can see that the 'data' slot just holds a data.frame (which we saw earlier), and each row in the data frame holds the information for one county (each of these rows is one of the Polygons in the Spatial Polygons Data Frame).  You can also see that one of the variables in the data frame is called NAME.  We can retrieve the elements in NAME by calling them like we did with the data frame above.
+```{r}
+shp@data$NAME
+```
+
+### Question 3 (0.5 pts) ###
+In the box below, identify which of the polygons (i.e. rows in the data frame) corresponds to Alameda County.  We did this with numbers in vectors in the first part of this lab exercise, and we can do the same with a character string (but remember to enclose the string in quotation marks).  Assign this number to an object named alameda_num.
+```{r}
+
+alameda_num <- which(shp@data$NAMELSAD == "Alameda County")
+```
+
+If we want to subset the Spatial Polygons Data Frame to retrieve just the polygon for Alameda County, we could do so by using the index for the row number that corresponds to Alameda.
+```{r}
+shp[alameda_num, ] # retrieve the row/polygon corresponding to Alameda county from the data frame
+```
+
+
+### Rasters
+Next, let's load a digital elevation model (DEM) in the form of a raster.  This raster includes the elevation for each cell on our landscape.
+```{r}
+DEM <- raster("elevation.tif") # read in a digital elevation model (DEM) raster
+DEM
+```
+What is the projection (coord. ref.) of this raster?  Does it match the projection of our shapefile?  It doesn't, but we won't worry about that today.  However, in the future, be very careful about this; it's important to make sure that the data you are analyzing have the same geographic projection, otherwise the spatial locations on one dataset won't be the same as the other.  
+
+Now, plot the DEM and add the county shapefile as an overlay to see what we're working with.
+```{r}
+plot(DEM, col=terrain.colors(20))
+plot(shp, add = TRUE) # using 'add = TRUE' allows us to overlay the shapefile; if we used 'add = FALSE' then it would replace the previously plotted DEM
+```
+
+Now, let's get the elevation for every cell in each of the counties.  We do this using the extract() function from the raster package. (This may take a few minutes to run.)
+```{r}
+elev <- extract(DEM, shp)
+head(elev) # This is a long list, so the head() functions just shows us the first few entries.
+```
+You'll notice the warning message (in red) that the projections for our shapefile and raster don't match.  Fortunately, the extract() functions corrects for this mismatch automatically.
+
+Next, let's calculate the average elevation for each county based on the extracted values.  One of R's built-in math functions is mean(), which finds the mean average for a set of values.  We could write a loop that goes through each slice in the list of extracted elevation values (each slice corresponds to a county), but R provides some helper functions that make this process even easier.  So, here, we can just use the lapply() function, which stands for 'list apply' and applies a given function to every entry in a list.  
+
+lapply(X, FUN, ...)
+  X: a vector or an expression object.
+  FUN: the function to be applied to each element of X
+  ...: option arguments to FUN
+  
+Below, we'll also supply the 'na.rm = TRUE' argument, which gets passed along to the mean() function.  This tells the function to ignore values that are listed as NA.  These come up because some parts of the county polygons aren't covered by a raster cell.
+```{r}
+avg_elev <- lapply(elev, mean, na.rm=TRUE) # lapply() applies the mean() function to every slice in elev.
+head(avg_elev)
+```
+
+We don't need this information as a list any more, so let's convert it to a vector instead.  We can do that using the unlist() function.
+```{r}
+avg_elev <- unlist(avg_elev)
+avg_elev
+```
+
+Now, let's use the area() function to calculate the area of each county, based on the shapefile.
+```{r}
+county_area <- area(shp)
+head(county_area)
+```
+
+
+### Question 4 (0.5 pts) ###
+In the box below, retrieve the area for Alameda County.  Recall the index we found for Alameda county a few steps above.
+```{r}
+county_area[alameda_num]
+```
+
+And now let's try out one of R's slightly more advanced statistical functions.  The lm() function allows us to quickly fit a linear model to our data; that means to conduct a linear regression analysis.  Here, we'll use the tilde (~) operator to specify a formula or equation. e.g. the equation for a line, y = mx + b, would be represented as y ~ mx + b. 
+```{r}
+reg <- lm(avg_elev ~ county_area) # conduct the linear regression analysis and store the result in reg
+summary(reg) # show us the results
+```
+
+### Question 5 (1 pt) ###
+Is the average elevation of the counties significantly correlated with their areas?  Should we expect them to be?  If they were, can you think of a good ecological reason that would explain the correlation?
+>> Based off the results, the average elevation of the counties does not seem to be significantly correlated with their areas because the p-value is large (0.1151)
+
+
+### Question 6a (0.5 pts) ###
+In the box below:
+1) Calculate the maximum elevation for each county and assign these values to an object named max_elev.  You can use the max() function to get the maximum value from an array.  You can do this using either the lapply() function or using a loop.  If you want extra practice, try doing it both ways.  
+2) Test whether maximum elevation is correlated with average elevation.
+```{r}
+# Part 1
+max_elev <- lapply(elev, max, na.rm=TRUE) # lapply() applies the max() function to every slice in elev.
+max_elev <- unlist(max_elev)
+
+#Part 2
+new_reg <- lm(max_elev ~ avg_elev) # conduct the linear regression analysis and store the result in new_reg
+summary(new_reg) # show us the results
+```
+### Question 6b (0.5 pts) ###
+Are maximum and average elevation significantly correlated?  Does this result make sense?
+>> Yes this makes sense! Maximum and average elevation for a county are significantly correlated to one another. How neat!
+
+
+### Question 7 (0 pts) ###
+Ok, this is the last task for this lab exercise, and it's a bit of a challenge.  It's not worth any points, so don't worry if you can't get it to work right now, but it's good practice to try anyway.  In the box below:
+1) Calculate the average (mean) maximum elevation across all of the counties (the mean of all counties' max elevations).
+2) If a county has a maximum elevation lower than the mean, add the name of the county to a vector named lower; if it has a higher maximum elevation than the mean, add its name to a vector named higher.
+3) Check the total lengths of your vectors to make sure all counties were added to one or the other.
+```{r}
+mean_elev <- mean(max_elev)
+lower_ind <- which(max_elev < mean_elev)
+higher_ind <- which(max_elev > mean_elev)
+
+```
+
+
+### The End
+That's all for today!  Hopefully R is starting to feel accessible to you.  If there's anything that didn't quite make sense today, then talk with your GSI!
