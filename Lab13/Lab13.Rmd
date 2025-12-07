@@ -1,0 +1,328 @@
+---
+title: "ESPM 137, Lab 13: Landscape Genetics"
+output: html_document
+---
+
+#! This lab is worth 11 pts and is due at 5pm on Thursday, 12/3 !#
+
+## Overview and Goals
+
+In this lab, we will explore patterns of genetic variation on landscapes and some of the factors that can affect them.  We will start by using simulations to see how population divergence and genetic variation change under a model of genetic drift and and a model of drift plus dispersal.  We'll then analyze two empirical datasets to examine how landscape variables can influence genetic structure.
+
+Goals--
+1: Test how population size and dispersal rate affect population divergence and genetic diversity.
+2: Use matrix correlation analysis (Mantel tests) to test whether roads limit dispersal in the Western toad.
+3: Learn how to perform an advanced geostatistical analysis (generalized dissimilarity modeling) to quantify IBD and IBE in the Hispaniolan green anole.
+
+
+### Set up the R session ###
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Start with a clean slate...
+rm(list = ls()) 
+
+# Set working directory...
+wd_path <- "~/Desktop/School/Berkeley/Fall 2020/ESPM 137/Lab13"
+setwd(wd_path)
+knitr::opts_knit$set(root.dir = wd_path) # Make sure knitr knows your wd
+```
+
+Load required packages...
+```{r packages, include=FALSE}
+# Make a list of the packages we need, check whether they're installed, and install the ones we're missing...
+required.pkg <- c("raster", "gdm", "tseries", "RColorBrewer", "rgdal", "gdistance", "vegan")
+pkgs.not.installed <- required.pkg[!sapply(required.pkg, function(p) require(p, character.only=T))]
+if (length(pkgs.not.installed) > 0) install.packages(pkgs.not.installed, dependencies=TRUE)
+
+# Load the required libraries...
+lapply(required.pkg, library, character.only = TRUE) 
+
+source("LGfunctions.R")
+```
+
+-----------------------------------------------------
+
+## Part 1: Models of Population Genetic Divergence ##
+
+First, let's look at a few simple models of population genetic divergence.  The first is an island model of genetic drift in which we have two populations that are isolated from one another and gradually undergoing genetic changes under purely neutral stochastic processes.  In this case, the only thing that changes allele frequencies is the random sampling of alleles between generations.  We can run this simulation model using the drift() function.
+
+
+drift(pops, N, gens, plot=TRUE)
+  pops: the number of populations to simulate
+  N: the size (number of individuals) of each population
+  gens: the number of generations to simulate
+  plot: whether to plot the allele frequencies each generation
+
+Let's simulate three populations with 1000 individuals over 1000 generations.
+```{r}
+set.seed(1234)
+sim1 <- drift(pops=3, N=1000, gens=1000)
+```
+
+This should give you a sense of how allele frequencies can fluctuate from generation to generation purely due to chance, and when genetic drift is acting independently in different populations, they can gradually diverge from one another.  You can also see how the amount of genetic variation in each population changes due to drift - as populations move toward 0 or 1, they have less variation.
+
+Next, let's use this same simulation model to explore the effects of population size in maintaining genetic variation (under a model of genetic drift).
+
+## Lab Question 1 (1.5 pts) ##
+**1a) In the box below, run a simulation using the drift() function for 1000 generations with four populations that each have 500 individuals. [0.5 pts]**
+```{r}
+sim2 <- drift(pops=4, N=500, gens=1000)
+```
+
+**1b) Now let's decrease the population size even further.  In the box below, run a simulation using the drift() function for 1000 generations with four populations that each have 250 individuals. [0.5 pts]**
+```{r}
+sim3 <- drift(pops=4, N=250, gens=1000)
+```
+
+**1c) In general terms, what is the relationship between population size and the rate at which genetic variation is lost? [0.5 pts]**
+>> The relationship between population size and the rate at which genetic variation is lost is negative. As population size decreases, the rate at which genetic variation is lost increases.
+
+
+Now let's explore a model that incorporates dispersal between populations, in addition to drift.  We can use the dispersal_drift() function to run simulations that model two populations in a metapopulation that are connected by migration between them each generation.
+
+dispersal_drift(mig, N, gens, plot=TRUE)
+  mig: the rate of migration (aka dispersal) between populations
+  N: the size (number of individuals) of each population
+  gens: the number of generations to simulate
+  plot: whether to plot the allele frequencies each generation
+
+Let's start by simulating a pair of populations with 250 individuals and a low dispersal rate of 0.001 for 1000 generations.
+```{r}
+set.seed(1234)
+sim4 <- dispersal_drift(mig=0.001, N=250, gens=1000, plot=TRUE) 
+```
+
+And now let's see what happens as we change the rate of dispersal between the populations.
+
+## Lab Question 2 (1.5 pts) ##
+**2a) In the box below, run the dispersal_drift() simulation with a moderately low dispersal rate of 0.01 and population size of 250 for 1000 generations. [0.5 pts]**
+```{r}
+sim4 <- dispersal_drift(mig=0.01, N=250, gens=1000, plot=TRUE) 
+```
+
+**2b) Let's also try a moderately high dispersal rate of 0.05.  In the box below, run the simulation with the same population size (250) but the higher dispersal rate of 0.05 for 1000 generations. [0.5 pts]**
+```{r}
+sim4 <- dispersal_drift(mig=0.05, N=250, gens=1000, plot=TRUE) 
+```
+
+**2c) Compare these dispersal_drift() simulation results to the results for the drift() simulations with population sizes of 250, above.  In general terms, what effect does even a moderately low dispersal rate have on population divergence?  What about on the rate at which genetic variation is lost? [0.5 pts]**
+> A moderately low dispersal rate influences lower overall population divergence. A lower dispersal rate influences a higher rate at which genetic variation is lost compared to higher values.
+
+
+------------------------------------
+
+## Part 2: Do roads affect toads? ##
+
+Next, let's look at some empirical data to see if we can detect an effect of roads on toad dispersal.  This dataset includes a landscape layer and genetic data for a metapopulation of Western toads (Bufo boreas) in California.  
+
+First, we will read in a raster that includes a set of roads, the localities of toad breeding ponds, and the pairwise genetic distances between the toad populations.
+```{r}
+roads <- raster("RT324.tif")
+ponds <- read.csv("ToadLocs.csv", header=TRUE)
+ponds.sp <- SpatialPoints(ponds)
+genDists <- read.matrix("ToadGenDist.txt") 
+
+plot(roads, col=c("lightgreen", "black"))
+points(ponds.sp, pch=16, col="blue", cex=2)
+```
+
+We can calculate the straight line distances between points using the pointDistance() function just as we did in Lab 11.
+```{r}
+strtDists <- pointDistance(ponds.sp, lonlat = TRUE)
+strtDists <- as.matrix(strtDists)
+```
+
+And we can plot the geographic distances vs. the genetic distances to see if there is a pattern of isolation by distance (IBD).
+```{r}
+plot(strtDists[lower.tri(strtDists)], genDists[lower.tri(genDists)], pch=16, xlab="Euclidean Distances", ylab="Genetic Distances")
+```
+
+## Lab Question 3 (1 pt) ##
+**Does there appear to be a pattern of IBD for these data?  Explain your answer.**
+>> Yes there does seem to be a pattern of IBD for these data as genetic differentiation is increasing with geogpraphic distance.
+
+
+As we've learned, straight line distances are not always the most biologically realistic estimates of the distance between populations.  So, we will also calculate the resistance-based, circuit theory distances between populations.  First, we will reclassify the roads raster by assigning new values to each cell to turn it into a conductance raster.  A study of natterjack toads (Bufo calamita) in Northern Europe estimated that roads are 50 times more resistant to toads than their regular habitat, so we will give the roads a conductance value of 0.02.  
+
+First, we need to make a reclassification matrix that includes three columns: lower value range, upper value range, and new value.  On the roads raster, roads are coded as 1 and non-road cells are 0.  So, we will give 0 values a conductance of 1, and road cells (1) will have values of 0.02.
+```{r}
+recl <- matrix(c(
+  0, 0, 1, 
+  1, 1, 0.02),
+  byrow=TRUE, nrow=2, ncol=3)
+
+conductance.r <- reclassify(roads, recl, right=NA)
+```
+
+Now that we have a conductance raster, we can create a transition surface using the transition() function and calculate the circuit theory distances using the commuteDistance() function.
+
+transition (x, transitionFunction, directions, ...)
+  x: RasterLayer or RasterBrick
+  transitionFunction: function to calculate transition values from grid values
+  directions: number of directions in which cells are connected (4, 8, 16, or other)
+
+commuteDistance(x, sp)
+  x: TransitionLayer object
+  sp: SpatialPoints or SpatialPolygons object
+
+## Lab Question 4 (1.5 pts) ##
+**In the box below, calculate the circuit theory (resistance) distances using the transition() and commuteDistance() functions, as we did in Lab 12.  This time, however, use 4-direction movement (instead of 8-direction), which means you won't need to perform the geoCorrection() step and can use the result of the transition() function as the transition surface for the commuteDistance() function.  Assign the results to an object named resDists.**
+```{r}
+trSurface <- transition(conductance.r, transitionFunction = mean, directions = 4)
+resDists <- commuteDistance(trSurface, ponds.sp)
+resDists 
+# Check the result
+
+```
+
+We can perform a statistical test for a relationship between the genetic distances and the straight line distances using a Mantel test with the mantel() function.
+```{r}
+mantel(genDists, strtDists)
+```
+
+## Lab Question 5 (2.5 pts) ##
+**5a) We should also test the relationship of the circuit theory distances to the genetic distances.  Perform the Mantel test of the genetic and circuit theory distances in the box below. [1 pt]**
+```{r}
+mantel(genDists, resDists)
+```
+
+**5b) Which set of distances (the straight line distances or the resistance distances) are a better fit to the genetic distances?  What does this tell us about whether roads affect toad dispersal?  Are there any other tests you would want to do before drawing conclusions about the effect of roads? [1.5 pts]**
+>> The straight line distances are a better fit to the genetic distances. This tells us that roads might not affect toad dispersal as much as we thought. Another test we could do before draing conclusions about the effect of roads is creating a landscape corridor to assess the effect of roads on a least resistance path but with a buffer.
+
+
+----------------------------------------------------------------
+
+## Part 3: Isolation by distance or isolation by environment? ##
+
+Finally, we've learned that it's not only geographic isolation that drives population genetic divergence but also the environmental conditions each population experiences (and how different they are).  The results of these effects are patterns of isolation by distance (IBD) and isolation by enviromnent (IBE).  
+
+Because of spatial autocorrelation, disentangling IBD and IBE can be very difficult.  So, we will use an advanced form of spatial statistical modeling called generalized dissimilarity modeling (GDM).  GDM is conceptually similar to the spatial regression analyses we performed in earlier labs.  The biggest difference is that GDM models non-linear relationships between the variables in the model, which are common for population genetic data.
+
+The GDM analysis will give us an estimate of the overall model fit (known as deviance explained) and coefficients for each of the predictor variables in our model, which we can interpret just like any regression coefficients.  In these analyses, we will make the genetic distances the response variable and the environmental and geographic distances the predictor variables.  
+
+First, read in the data.  These include GIS raster layers for the island of Hispaniola and estimates of genetic divergence (genetic distances) for populations of the Hispaniolan green anole.
+```{r, warning=FALSE}
+# Read in genetic distance matrix
+genMat <- read.matrix("genMat.txt")
+
+# Create list of points from file
+localities <- read.csv("LizardLocalities.csv")
+
+# And a set of worldclim rasters for the study area
+setwd("./Hispaniola")
+wclim <- stack(list.files())
+
+# Plot the data
+TanBlue <- colorRampPalette(c("wheat", "steelblue", "darkblue"))
+plot(wclim[[1]], col=TanBlue(100), main="Precipitation")
+points(localities, pch='+', cex=2)
+```
+
+Now we need to format the input objects for the GDM analysis.  First, we'll prepare the response variable: in this case, the genetic distance matrix.  We need to add a column that provides the site/population numbers.
+```{r}
+site <- 1:nrow(genMat) # Make a vector of site numbers
+gdmGen <- cbind(site, genMat) # Add this to the genetic distance matrix 
+head(gdmGen) # View the results
+```
+
+Now for the predictor variables - first, we need to extract the values from the raster stack at each locality, and then we'll bind columns with the site numbers, latitude, and longitude to the table of extracted values.
+```{r}
+gdmPred <- extract(wclim, localities) # Extract raster values for each population
+gdmPred <- cbind(site, localities, gdmPred) # Add site number, latitude, and longitude
+head(gdmPred) # View the results
+```
+
+And now we can run the formatsitepair() function in the gdm package to format all the data into a gdm object.
+
+formatsitepair(bioData, bioFormat, predData, XColumn, YColumn, siteCol, ...)
+  bioData: the response variable in matrix or data frame format
+  bioFormat: code (1-4) for the format of the response variable [We will keep this as bioFormat=3]
+  predData: the predictor variables as a data frame object, including columns for site number, longitude, and latitude
+  XColumn: the name of the column in predData that includes the longitude values
+  YColumn: the name of the column in predData that includes the latitude values
+  siteCol: the name of the column in predData and bioData that includes the unique site names or numbers
+  
+```{r}
+gdmData <- formatsitepair(gdmGen, bioFormat = 3, predData = gdmPred, XColumn = "Longitude", YColumn = "Latitude", siteCol = "site")
+```
+
+Now that we have the input data formatted, we can fit the model using the gdm() function.
+
+gdm(data, geo=FALSE, ...)
+  data: A data frame containing the site pairs to be used to fit the GDM (typically obtained using the formatsitepair function).
+  geo: Set to TRUE if geographic distance between sites is to be included as a model term. Set to FALSE if geographic distance is to be omitted from the model.
+
+```{r}
+gdm.model <- gdm(gdmData, geo = TRUE)
+```
+
+And let's display a summary of the results.  These will show us the coefficients for each predictor variable and the overall model fit.  For GDM models, the overall model fit is calculated as the Percent Deviance Explained, with higher values indicating better fit of the model to the data.
+```{r}
+summary.gdm(gdm.model)
+```
+
+Now let's retrieve the fitted values and summarize them into a data frame using the coeffs() function.
+```{r}
+predictors <- coeffs(gdm.model)
+predictors
+```
+
+The GDM package also allows us to do a test of variable importance and significance.  We can do this using the gdm.varImp() function, which performs a series of permutation tests to see how much each predictor variable contributes to the model.  After each round of permutations, the function removes the predictor variable with the lowest contribution to the model, refits the model, and runs the permutations again on the remaining variables.
+```{r, warning=FALSE}
+set.seed(121)
+vars <- gdm.varImp(gdmData, geo = TRUE, splines = NULL, nPerm=50)
+vars
+```
+The result of gdm.varImp() is a list of four tables.  The first contains the model deviance and significance values.  The second contains the variable weights (importance).  The third has the p-values for each predictor.  And the fourth shows the number of permutations run for each predictor.  
+
+As a rule of thumb, the model that we accept should be the one for which all of the predictor variables are statistically significant (p < 0.05).  If we look at the percent deviance explained, this should also be the last model right before the percent deviance explained starts to drop off quickly.
+
+## Lab Question 6 (1 pt) ##
+**Now that we have tested for the importance of each predictor variable and identified the best model, we can fit a new GDM model with only the significant predictors.  In the box below, subset the dataframe with the predictor variables (gdmPred) so that only the significant variables are retained (plus the site column and latitude and longitude columns).  Then format the predictor and response data to create a GDM data object, and then fit a GDM model to the data.  Save the results to an object named gdm.model2 (for future use).**
+```{r}
+gdmPred_6 <- gdmPred[, c(1, 2, 3, 6)] # select out lat, long, and hisp_4 columns
+gdmData_6 <- formatsitepair(gdmGen, bioFormat = 3, predData = gdmPred_6, XColumn = "Longitude", YColumn = "Latitude", siteCol = "site")
+gdm.model2 <- gdm(gdmData_6, geo = TRUE)
+summary.gdm(gdm.model2)
+```
+
+And let's check the coefficients of the predictor variables.  The coefficient for the geographic distances will tell us how strong the signal of IBD is, and the sum of the coefficients for the environmental variables will tell us how strong the signal of IBE is.
+```{r}
+predictors <- coeffs(gdm.model2)
+predictors
+```
+
+## Lab question 7 (2 pts) ##
+**What are the strengths of IBD and IBE (total IBE) for these lizard populations?  Which environmental variable contributes most to IBE?  In general terms, what do these results tell us about how geography and the environment influence genetic divergence?**
+>> The strength of the IBD for the lizard populations is 0.647 and the strength of the IBE is 0.965. These results tell us that both Geogrpahy and the environment influence genetic divergence, but geography makes up the majority of the influence.
+
+
+Finally, With the fitted model, we can plot predicted genetic turnover on our landscape.
+```{r, warning=FALSE, message=FALSE}
+# Transform GIS layers
+rastTrans <- gdm.transform(gdm.model, wclim)
+rastDat <- na.omit(getValues(rastTrans))
+pcaSamp <- prcomp(rastDat)
+
+# note the use of the 'index' argument
+pcaRast <- predict(rastTrans, pcaSamp, index=1:3)
+
+# scale rasters
+pcaRast[[1]] <- (pcaRast[[1]]-pcaRast[[1]]@data@min) /
+  (pcaRast[[1]]@data@max-pcaRast[[1]]@data@min)*255
+pcaRast[[2]] <- (pcaRast[[2]]-pcaRast[[2]]@data@min) /
+  (pcaRast[[2]]@data@max-pcaRast[[2]]@data@min)*255
+pcaRast[[3]] <- (pcaRast[[3]]-pcaRast[[3]]@data@min) /
+  (pcaRast[[3]]@data@max-pcaRast[[3]]@data@min)*255
+
+plotRGB(pcaRast, r=1, g=2, b=3)
+points(localities, pch='+', cex=1.5) 
+```
+
+On this map, more similar colors indicate more genetic similarity.  So, areas in which the colors transition faster indicate higher rates of genetic turnover.
+
+So, now you've learned how to work with GIS data layers and spatial point data, how to perform sophisticated spatial statistical analysis, how to compare different geospatial models, and even how to map genetic composition on real landscapes.  And isn't this a pretty map to end on?
+
+### The End ###
